@@ -37,7 +37,7 @@ fn version_reports_the_package_version() {
 
 #[test]
 fn unfinished_commands_fail_explicitly_without_success_output() {
-    for command in ["scan", "compare", "check", "explain"] {
+    for command in ["compare", "check", "explain"] {
         let output = Command::new(env!("CARGO_BIN_EXE_sortralis"))
             .arg(command)
             .output()
@@ -74,4 +74,66 @@ fn environment_mode_reports_missing_tools_with_structured_ids() {
         );
     }
     std::fs::remove_dir(directory).unwrap();
+}
+
+fn fixture(name: &str) -> std::path::PathBuf {
+    std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../fixtures")
+        .join(name)
+        .canonicalize()
+        .unwrap()
+}
+#[test]
+fn scan_prints_workspace_and_multiple_contract_candidates() {
+    let path = fixture("healthy-v28");
+    let output = Command::new(env!("CARGO_BIN_EXE_sortralis"))
+        .arg("scan")
+        .arg(&path)
+        .output()
+        .unwrap();
+    assert!(output.status.success(), "{:?}", output);
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    assert!(stdout.contains(&format!("Workspace: {}", path.display())));
+    assert!(stdout.contains("Workspace packages: 2"));
+    assert!(stdout.contains("Soroban contract candidates: 2"));
+    for name in ["alpha", "beta"] {
+        assert!(stdout.contains(name));
+    }
+    assert!(stdout.contains("=28.0.0"));
+    assert!(stdout.contains("Full upgrade analysis is not implemented"));
+}
+#[test]
+fn scan_no_soroban_is_a_completed_discovery() {
+    let output = Command::new(env!("CARGO_BIN_EXE_sortralis"))
+        .arg("scan")
+        .arg(fixture("non-soroban"))
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    assert!(String::from_utf8(output.stdout)
+        .unwrap()
+        .contains("No Soroban contract candidates found"));
+}
+#[test]
+fn scan_non_cargo_input_and_missing_cargo_fail_usefully() {
+    let fixture = fixture("non-soroban");
+    let output = Command::new(env!("CARGO_BIN_EXE_sortralis"))
+        .arg("scan")
+        .arg(fixture.join("src"))
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(2));
+    assert!(String::from_utf8(output.stderr)
+        .unwrap()
+        .contains("no Cargo.toml"));
+    let output = Command::new(env!("CARGO_BIN_EXE_sortralis"))
+        .arg("scan")
+        .arg(&fixture)
+        .env("PATH", fixture.join("src"))
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(3));
+    assert!(String::from_utf8(output.stderr)
+        .unwrap()
+        .contains("Cargo metadata failed"));
 }

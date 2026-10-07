@@ -2,10 +2,11 @@
 
 A local-first CLI being built to analyze Soroban contract upgrades before deployment.
 
-**Status: pre-alpha, Phase 3 runner (`0.1.0-alpha.1`).** Help and version work;
-`scan --environment` detects Rust, Cargo, and Stellar CLI versions. Full repository
-analysis, `compare`, `check`, and `explain` remain unfinished and return explicit
-errors. No contract builds, repository tests, or reports run automatically.
+**Status: pre-alpha, Phase 4 Cargo discovery (`0.1.0-alpha.1`).** `scan` discovers
+Cargo workspaces and likely Soroban contract packages. `scan --environment` detects
+Rust, Cargo, and Stellar CLI versions. Full upgrade analysis, `compare`, `check`,
+and `explain` remain unfinished. No contract builds, repository tests, or reports
+run automatically.
 
 Passing Sortralis is not a security audit and does not prove that an upgrade is safe to deploy.
 
@@ -31,10 +32,29 @@ cargo run -p doctor-cli -- scan --environment
 ```
 
 An optional directory can be supplied: `scan ./contract-project --environment`.
-This prints tool versions and explicitly states that repository analysis is not
-implemented. It exits 0 when all versions are detected and 3 for missing tools,
+This prints tool versions and explicitly states that full repository analysis is
+not implemented. It exits 0 when all versions are detected and 3 for missing tools,
 execution failures, or unrecognized version output. It applies no version threshold.
-Full `scan` without this flag still returns an explicit unfinished-command error.
+To discover repository packages and SDK requirements:
+
+```bash
+cargo run -p doctor-cli -- scan ./contract-project
+```
+
+Supply a directory containing `Cargo.toml` or a manifest path. A workspace member
+is supported: Cargo identifies its workspace root and all members. Discovery does
+not recursively search unrelated subdirectories or silently use an ancestor's
+manifest when the supplied directory has none. It runs offline metadata with
+`--no-deps`, reports **requested** SDK requirements (including inheritance and
+aliases), and does not resolve versions, build contracts, or create a lockfile.
+Normal SDK dependencies mark candidates; dev/build-only SDK dependencies do not.
+Optional and target-specific dependencies are evidence, not proof of an active
+contract. A non-Soroban Cargo project completes with no candidates.
+
+Discovery exits 0 on completion, 2 for invalid paths/missing manifests, 3 for
+Cargo execution failures (including malformed manifests), and 4 for invalid
+metadata output. It has a 30-second timeout. Exit 0 means discovery completed;
+it makes no upgrade compatibility claim. See [discovery details](docs/cargo-discovery.md).
 
 ## Workspace
 
@@ -51,11 +71,11 @@ Full `scan` without this flag still returns an explicit unfinished-command error
 The `doctor-core` library provides typed models, validated configuration, and pure
 policy evaluation. `doctor-runner` executes explicitly requested programs with
 separate arguments, timeout handling, concurrent output capture, and environment
-detection. The other four libraries establish boundaries only. No repository
-analyzer is implemented. See [runner behavior](docs/runner.md).
+detection. `doctor-cargo` discovers packages from Cargo metadata. The remaining three
+libraries establish boundaries only. See [runner behavior](docs/runner.md).
 CLI integration tests live in `tests/cli/help.rs` and are explicitly registered
-in `crates/doctor-cli/Cargo.toml`. Reserved `fixtures/`, `docs/`, and `scripts/`
-directories are retained for later phases.
+in `crates/doctor-cli/Cargo.toml`. Metadata-only Cargo fixtures live in `fixtures/`;
+they are not contract build verification. The `scripts/` directory is reserved for later phases.
 
 ## Quality checks
 
@@ -71,8 +91,9 @@ commands on pushes and pull requests. A workflow file is not evidence of a
 successful hosted CI run.
 
 Direct dependencies are pinned: clap 4.6.7, serde 1.0.229, toml 1.1.6,
-semver 1.0.28, and nix 0.31.3 (Unix only).
-serde_json 1.0.151 is a test-only dependency. Cargo.lock pins the full graph.
+semver 1.0.28, cargo_metadata 0.23.1, and nix 0.31.3 (Unix only).
+serde_json 1.0.151 parses Cargo metadata and is also used in tests. Cargo.lock pins
+the full graph.
 This project has been tested on Rust 1.96.0. See the
 [Phase 1 notes](docs/phase-1-notes.md) and [core model](docs/core-model.md).
 
