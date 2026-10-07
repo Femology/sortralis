@@ -14,19 +14,19 @@ Options:
 
       --package <PACKAGE>
           Package to build
-          
+
           If omitted, all packages that build for crate-type cdylib are built.
 
       --profile <PROFILE>
           Build with the specified profile
-          
+
           [default: release]
 
       --out-dir <OUT_DIR>
           Directory to copy wasm files to
-          
+
           If provided, wasm files can be found in the cargo target directory, and the specified directory.
-          
+
           If ommitted, wasm files are written only to the cargo target directory.
 
       --locked
@@ -34,7 +34,7 @@ Options:
 
       --optimize [<OPTIMIZE>]
           Optimize the generated wasm. Enabled by default; pass `--optimize=false` to disable. Requires the `additional-libs` feature
-          
+
           [default: true]
           [possible values: true, false]
 
@@ -74,10 +74,10 @@ Global Options:
 
       --very-verbose
           Log DEBUG and TRACE events
-          
+
           [aliases: --vv]
 
       --no-cache
           Do not cache your simulations and transactions
-          
+
           [env: STELLAR_NO_CACHE=]

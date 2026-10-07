@@ -13,7 +13,7 @@ Options:
 
       --contract-id <CONTRACT_ID>
           Contract ID/alias on a network. Provide this OR `--wasm-hash` OR `--wasm`
-          
+
           [env: STELLAR_CONTRACT_ID=]
           [aliases: --id]
 
@@ -23,22 +23,22 @@ Options:
 RPC Options:
       --rpc-url <RPC_URL>
           RPC server endpoint
-          
+
           [env: STELLAR_RPC_URL=]
 
       --rpc-header <RPC_HEADERS>
           RPC Header(s) to include in requests to the RPC provider, example: "X-API-Key: abc123". Multiple headers can be added by passing the option multiple times
-          
+
           [env: STELLAR_RPC_HEADERS]
 
       --network-passphrase <NETWORK_PASSPHRASE>
           Network passphrase to sign the transaction sent to the rpc server
-          
+
           [env: STELLAR_NETWORK_PASSPHRASE=]
 
   -n, --network <NETWORK>
           Name of network to use from config
-          
+
           [env: STELLAR_NETWORK=]
 
 Global Options:
@@ -53,12 +53,12 @@ Global Options:
 
       --very-verbose
           Log DEBUG and TRACE events
-          
+
           [aliases: --vv]
 
       --no-cache
           Do not cache your simulations and transactions
-          
+
           [env: STELLAR_NO_CACHE=]
 
       --config-dir <CONFIG_DIR>

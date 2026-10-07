@@ -8,7 +8,8 @@ Observed installed executable: `/home/dell/.local/bin/stellar`.
 No Phase 0 evidence file/help-command list existed in the inspected repository or
 attached build plan. The full help inventory below was rerun before Phase 9 code
 was written. Earlier Phase 6 `stellar contract build` syntax remains unchanged.
-Exact stdout is recorded in `fixtures/stellar-cli-27/`; these are observations,
+Help stdout is recorded in `fixtures/stellar-cli-27/` with trailing whitespace
+removed; JSON, hash, version and diagnostic recordings retain observed output. These are observations,
 not invented future-version or minimum-version requirements.
 
 ```bash

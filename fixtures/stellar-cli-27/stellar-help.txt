@@ -79,10 +79,10 @@ Global Options:
 
       --very-verbose
           Log DEBUG and TRACE events
-          
+
           [aliases: --vv]
 
       --no-cache
           Do not cache your simulations and transactions
-          
+
           [env: STELLAR_NO_CACHE=]
