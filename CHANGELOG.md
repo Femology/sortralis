@@ -1,5 +1,13 @@
 # Changelog
 
+## Phase 9 — Stellar adapter and local Wasm inspection
+
+- Centralize verified Stellar version/build/local-info command construction.
+- Add `sud wasm PATH [--json]` with captured evidence and typed failures.
+- Preserve interface/meta/env-meta JSON and inspect the CLI-reported SHA-256 hash.
+- Skip remote build attestations under local-only network policy.
+- Record current CLI help/output and add injected-runner, missing-tool and real smoke tests.
+
 ## Phase 8 — safe Git diff
 
 - Add `doctor-git` object snapshots, validated refs, raw dirty detection and explicit cleanup.

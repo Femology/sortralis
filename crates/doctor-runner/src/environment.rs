@@ -154,11 +154,15 @@ pub fn detect_environment_with(
     };
     for program in ["rustc", "cargo", "stellar"] {
         let command = runner
-            .execute(&CommandSpec {
-                program: program.into(),
-                args: vec!["--version".into()],
-                working_directory: directory.into(),
-                timeout,
+            .execute(&if program == "stellar" {
+                crate::StellarCli::<SystemRunner>::version_request(directory, timeout)
+            } else {
+                CommandSpec {
+                    program: program.into(),
+                    args: vec!["--version".into()],
+                    working_directory: directory.into(),
+                    timeout,
+                }
             })
             .map_err(EnvironmentError::Runner)?;
         let tool = inspect_tool(program, command);

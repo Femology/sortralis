@@ -1,0 +1,88 @@
+Work seamlessly with Stellar accounts, contracts, and assets from the command line.
+
+- Generate and manage keys and accounts
+- Build, deploy, and interact with contracts
+- Deploy asset contracts
+- Stream events
+- Start local testnets
+- Decode, encode XDR
+- More!
+
+For additional information see:
+
+- Stellar Docs: https://developers.stellar.org
+- Smart Contract Docs: https://developers.stellar.org/docs/build/smart-contracts/overview
+- CLI Docs: https://developers.stellar.org/docs/tools/developer-tools/cli/stellar-cli
+
+To get started generate a new identity:
+
+    stellar keys generate alice
+
+Use keys with the `--source` flag in other commands.
+
+Commands that work with contracts are organized under the `contract` subcommand. List them:
+
+    stellar contract --help
+
+Use contracts like a CLI:
+
+    stellar contract invoke --id CCR6QKTWZQYW6YUJ7UP7XXZRLWQPFRV6SWBLQS4ZQOSAF4BOUD77OTE2 --source alice --network testnet -- --help
+
+Anything after the `--` double dash (the "slop") is parsed as arguments to the contract-specific CLI, generated on-the-fly from the contract schema. For the hello world example, with a function called `hello` that takes one string argument `to`, here's how you invoke it:
+
+    stellar contract invoke --id CCR6QKTWZQYW6YUJ7UP7XXZRLWQPFRV6SWBLQS4ZQOSAF4BOUD77OTE2 --source alice --network testnet -- hello --to world
+
+
+Usage: stellar [OPTIONS] <COMMAND>
+
+Commands:
+  contract    Tools for smart contract developers
+  doctor      Diagnose and troubleshoot CLI and network issues
+  events      Watch the network for contract events
+  env         Prints the environment variables
+  keys        Create and manage identities including keys and addresses
+  network     Configure connection to networks
+  container   Start local networks in containers
+  config      Manage CLI configuration
+  snapshot    Download a snapshot of a ledger from an archive
+  tx          Sign, Simulate, and Send transactions
+  xdr         Decode and encode XDR
+  strkey      Decode and encode strkey
+  completion  Print shell completion code for the specified shell
+  cache       Cache for transactions and contract specs
+  version     Print version information
+  plugin      The subcommand for CLI plugins
+  ledger      Fetch ledger information
+  message     Sign and verify arbitrary messages using SEP-53
+  fee-stats   ⚠️ Deprecated, use `fees stats` instead. Fetch network feestats
+  fees        Fetch network feestats and configure CLI fee settings
+
+Options:
+  -h, --help
+          Print help (see a summary with '-h')
+
+  -V, --version
+          Print version
+
+Global Options:
+      --config-dir <CONFIG_DIR>
+          Location of config directory. By default, it uses `$XDG_CONFIG_HOME/stellar` if set, falling back to `~/.config/stellar` otherwise. Contains configuration files, aliases, and other persistent settings
+
+  -f, --filter-logs <FILTER_LOGS>
+          Filter logs output. To turn on `stellar_cli::log::footprint=debug` or off `=off`. Can also use env var `RUST_LOG`
+
+  -q, --quiet
+          Do not write logs to stderr including `INFO`
+
+  -v, --verbose
+          Log DEBUG events
+
+      --very-verbose
+          Log DEBUG and TRACE events
+          
+          [aliases: --vv]
+
+      --no-cache
+          Do not cache your simulations and transactions
+          
+          [env: STELLAR_NO_CACHE=]

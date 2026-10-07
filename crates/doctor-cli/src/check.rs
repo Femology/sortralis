@@ -367,7 +367,10 @@ pub fn check_with(
         StepStatus::Blocked { reason }
     } else {
         run_task(
-            &task_request("stellar", &["contract", "build"], &root, timeouts.task),
+            &doctor_runner::StellarCli::<doctor_runner::SystemRunner>::build_request(
+                &root,
+                timeouts.task,
+            ),
             Category::Build,
             "BUILD_FAILED",
             runner,

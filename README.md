@@ -2,14 +2,13 @@
 
 A local-first CLI being built to analyze Soroban contract upgrades before deployment.
 
-**Status: pre-alpha, Phase 8 safe Git source comparison (`0.1.0-alpha.1`).** `scan` discovers
+**Status: pre-alpha, Phase 9 local Wasm inspection (`0.1.0-alpha.1`).** `scan` discovers
 Cargo workspaces and likely Soroban contract packages. `scan --environment` detects
 Rust, Cargo, and Stellar CLI versions. `check` analyzes source and runs configured
 repository tests and Stellar builds, with captured statuses and diagnostics.
 `explain` documents registered source rules. `compare-source` takes explicit
 `--before <dir> --after <dir>` storage source snapshots; `--json`
-emits machine-readable diff records. Artifact comparison, Wasm inspection, and
-full scan report files remain unfinished. `sud diff --from X --to Y` compares committed source snapshots without switching the active worktree. See [Git diff safety and scope](docs/git-diff.md). See [storage scope and classifications](docs/storage-analysis.md).
+emits machine-readable diff records. Artifact comparison and full scan report files remain unfinished. `sud diff --from X --to Y` compares committed source snapshots without switching the active worktree. See [Git diff safety and scope](docs/git-diff.md). See [storage scope and classifications](docs/storage-analysis.md).
 
 Passing Sortralis is not a security audit and does not prove that an upgrade is safe to deploy.
 
@@ -77,8 +76,8 @@ The `doctor-core` library provides typed models, validated configuration, and pu
 policy evaluation. `doctor-runner` executes explicitly requested programs with
 separate arguments, timeout handling, concurrent output capture, and environment
 detection. `doctor-cargo` discovers packages from Cargo metadata. `doctor-source`
-provides a parser-based rule engine; the remaining two libraries establish boundaries
-only. See [runner behavior](docs/runner.md).
+provides a parser-based rule engine; `doctor-wasm` inspects local artifacts through the Stellar CLI adapter, and
+`doctor-report` renders comparison and inspection output. See [runner behavior](docs/runner.md).
 CLI integration tests live in `tests/cli/help.rs` and are explicitly registered
 in `crates/doctor-cli/Cargo.toml`. Discovery tests use offline fixture metadata;
 opt-in check tests compile copies of healthy-v28 and failing-tests. The `scripts/`
@@ -219,3 +218,30 @@ rule findings. This is source analysis: no tests, builds, target scripts, Wasm
 inspection, or ledger inspection run. Successful comparison exits 0 even when
 risks are reported; `check` remains the policy-enforcing command.
 See [limitations, cleanup and verified sources](docs/git-diff.md).
+
+## Inspect local Wasm
+
+```bash
+cargo run -p doctor-cli --bin sud -- wasm "./artifacts/contract with spaces.wasm"
+cargo run -p doctor-cli --bin sud -- wasm ./artifacts/contract.wasm --json
+```
+
+This requires Stellar CLI. Interface, metadata and environment metadata use its
+verified JSON output; the hash uses its verified SHA-256 text output. Reports
+retain command statuses/stdout/stderr, tool versions, local path and scope.
+Remote build attestations are explicitly skipped: the verified CLI's build-info
+command can use HTTP even for local files. Embedded compiler/SDK metadata is
+still reported. Inspection executes no contract code and offers no network
+artifact options. Source `scan` remains available without Stellar.
+
+Invalid local files exit 2, missing/failed/timed-out tools exit 3, malformed CLI
+output exits 4, and completed inspection exits 0. Full Wasm validation is delegated
+to Stellar CLI; inspection does not compare artifacts or certify compatibility.
+See [verified syntax, recordings and limitations](EVIDENCE.md).
+
+Default tests run a real version/hash smoke test when Stellar is available.
+To run full real inspection against a local contract:
+
+```bash
+SUD_TEST_WASM=/absolute/path/contract.wasm cargo test -p doctor-wasm --test adapter -- --ignored --nocapture
+```

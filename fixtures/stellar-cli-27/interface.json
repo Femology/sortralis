@@ -1,0 +1,1 @@
+[{"function_v0":{"doc":"","name":"add","inputs":[{"doc":"","name":"a","type_":"u64"},{"doc":"","name":"b","type_":"u64"}],"outputs":["u64"]}}]

@@ -29,6 +29,7 @@ doctor-runner = { path = "../doctor-runner" }
 doctor-report = { path = "../doctor-report" }
 serde_json.workspace = true
 doctor-git = { path = "../doctor-git" }
+doctor-wasm = { path = "../doctor-wasm" }
 serde.workspace = true
 toml.workspace = true
 

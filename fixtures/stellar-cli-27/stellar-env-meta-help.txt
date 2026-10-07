@@ -1,0 +1,80 @@
+Output the env required metadata stored in a contract.
+
+Env-meta is information stored in all contracts, in the `contractenvmetav0` WASM custom section, about the environment that the contract was built for. Env-meta allows the Soroban Env to know whether the contract is compatibility with the network in its current configuration.
+
+The data outputted by this command is a stream of `SCEnvMetaEntry` XDR values. See the type definitions in [stellar-xdr](https://github.com/stellar/stellar-xdr). [See also XDR data format](https://developers.stellar.org/docs/learn/encyclopedia/data-format/xdr).
+
+Outputs no data when no data is present in the contract.
+
+Usage: stellar contract info env-meta [OPTIONS] <--wasm <WASM>|--wasm-hash <WASM_HASH>|--contract-id <CONTRACT_ID>>
+
+Options:
+      --wasm <WASM>
+          Wasm file path on local filesystem. Provide this OR `--wasm-hash` OR `--contract-id`
+
+      --wasm-hash <WASM_HASH>
+          Hash of Wasm blob on a network. Provide this OR `--wasm` OR `--contract-id`
+
+      --contract-id <CONTRACT_ID>
+          Contract ID/alias on a network. Provide this OR `--wasm-hash` OR `--wasm`
+          
+          [env: STELLAR_CONTRACT_ID=]
+          [aliases: --id]
+
+      --output <OUTPUT>
+          Format of the output
+
+          Possible values:
+          - text:           Text output of the meta info entry
+          - xdr-base64:     XDR output of the info entry
+          - json:           JSON output of the info entry (one line, not formatted)
+          - json-formatted: Formatted (multiline) JSON output of the info entry
+          
+          [default: text]
+
+  -h, --help
+          Print help (see a summary with '-h')
+
+RPC Options:
+      --rpc-url <RPC_URL>
+          RPC server endpoint
+          
+          [env: STELLAR_RPC_URL=]
+
+      --rpc-header <RPC_HEADERS>
+          RPC Header(s) to include in requests to the RPC provider, example: "X-API-Key: abc123". Multiple headers can be added by passing the option multiple times
+          
+          [env: STELLAR_RPC_HEADERS]
+
+      --network-passphrase <NETWORK_PASSPHRASE>
+          Network passphrase to sign the transaction sent to the rpc server
+          
+          [env: STELLAR_NETWORK_PASSPHRASE=]
+
+  -n, --network <NETWORK>
+          Name of network to use from config
+          
+          [env: STELLAR_NETWORK=]
+
+Global Options:
+  -f, --filter-logs <FILTER_LOGS>
+          Filter logs output. To turn on `stellar_cli::log::footprint=debug` or off `=off`. Can also use env var `RUST_LOG`
+
+  -q, --quiet
+          Do not write logs to stderr including `INFO`
+
+  -v, --verbose
+          Log DEBUG events
+
+      --very-verbose
+          Log DEBUG and TRACE events
+          
+          [aliases: --vv]
+
+      --no-cache
+          Do not cache your simulations and transactions
+          
+          [env: STELLAR_NO_CACHE=]
+
+      --config-dir <CONFIG_DIR>
+          Location of config directory. By default, it uses `$XDG_CONFIG_HOME/stellar` if set, falling back to `~/.config/stellar` otherwise. Contains configuration files, aliases, and other persistent settings

@@ -26,3 +26,11 @@ Their build scripts deliberately fail compilation: comparison must never build
 them. They cover function addition/removal/signature change, event/type changes,
 stored value migration risk, and a newly applicable v28 export-argument finding.
 They do not claim to be compilable healthy contracts.
+
+
+`stellar-cli-27/` records actual installed CLI 27.0.0 help, version and JSON/hash
+outputs; `EVIDENCE.md` identifies the commands and artifact. The SDK-bundled Wasm
+used to record JSON was built with SDK 21.0.1-preview.1 (per its metadata), despite
+being distributed in the SDK 28.0.0 package. No Wasm binary is redistributed.
+Absent-section diagnostics are recorded real exit-1 output from a minimal local
+Wasm module; fixture-backed process doubles are distinguished from real smoke tests.

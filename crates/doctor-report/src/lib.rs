@@ -179,3 +179,35 @@ pub fn write_storage_diff(writer: &mut impl Write, diff: &StorageDiff) -> io::Re
     }
     writeln!(writer, "Passing Sortralis is not a security audit and does not prove that an upgrade is safe to deploy.")
 }
+
+pub fn write_wasm_inspection(
+    output: &mut impl std::io::Write,
+    report: &doctor_wasm::WasmInspection,
+) -> std::io::Result<()> {
+    writeln!(output, "Local Wasm: {:?}", report.path)?;
+    writeln!(
+        output,
+        "Stellar CLI: {}; SHA-256: {}",
+        report.stellar_cli_version, report.hash
+    )?;
+    for (name, section) in [
+        ("Interface", &report.interface),
+        ("Meta", &report.meta),
+        ("Env-meta", &report.env_meta),
+    ] {
+        writeln!(
+            output,
+            "{name}: {:?} ({} entries)",
+            section.status,
+            section.entries.len()
+        )?;
+        serde_json::to_writer_pretty(&mut *output, &section.entries)?;
+        writeln!(output)?;
+    }
+    writeln!(
+        output,
+        "Build info: {:?} — {}",
+        report.build_info.status, report.build_info.reason
+    )?;
+    writeln!(output, "{}", report.scope)
+}

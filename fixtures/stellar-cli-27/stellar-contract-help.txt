@@ -1,0 +1,33 @@
+Tools for smart contract developers
+
+Usage: stellar contract [OPTIONS] <COMMAND>
+
+Commands:
+  asset     Utilities to deploy a Stellar Asset Contract or get its id
+  alias     Utilities to manage contract aliases
+  bindings  Generate code client bindings for a contract
+  build     Build a contract from source
+  extend    Extend the time to live ledger of a contract-data ledger entry
+  deploy    Deploy a wasm contract
+  fetch     Fetch a contract's Wasm binary
+  id        Generate the contract id for a given contract or asset
+  info      Access info about contracts
+  init      Initialize a Soroban contract project
+  upload    Install a WASM file to the ledger without creating a contract instance
+  install   ⚠️ Deprecated, use `contract upload`. Install a WASM file to the ledger without creating a contract instance
+  invoke    Invoke a contract function
+  optimize  ⚠️ Deprecated, use `build --optimize`. Optimize a WASM file
+  read      Print the current value of a contract-data ledger entry
+  restore   Restore an evicted value for a contract-data legder entry
+  inspect   ⚠️ Deprecated, use `contract info`. Inspect a WASM file listing contract functions, meta, etc
+
+Options:
+  -h, --help  Print help
+
+Global Options:
+      --config-dir <CONFIG_DIR>    Location of config directory. By default, it uses `$XDG_CONFIG_HOME/stellar` if set, falling back to `~/.config/stellar` otherwise. Contains configuration files, aliases, and other persistent settings
+  -f, --filter-logs <FILTER_LOGS>  Filter logs output. To turn on `stellar_cli::log::footprint=debug` or off `=off`. Can also use env var `RUST_LOG`
+  -q, --quiet                      Do not write logs to stderr including `INFO`
+  -v, --verbose                    Log DEBUG events
+      --very-verbose               Log DEBUG and TRACE events [aliases: --vv]
+      --no-cache                   Do not cache your simulations and transactions [env: STELLAR_NO_CACHE=]

@@ -1,0 +1,21 @@
+Access info about contracts
+
+Usage: stellar contract info [OPTIONS] <COMMAND>
+
+Commands:
+  interface  Output the interface of a contract
+  meta       Output the metadata stored in a contract
+  env-meta   Output the env required metadata stored in a contract
+  build      Output the contract build information, if available
+  hash       Output the SHA-256 hash of a contract's Wasm
+
+Options:
+  -h, --help  Print help
+
+Global Options:
+      --config-dir <CONFIG_DIR>    Location of config directory. By default, it uses `$XDG_CONFIG_HOME/stellar` if set, falling back to `~/.config/stellar` otherwise. Contains configuration files, aliases, and other persistent settings
+  -f, --filter-logs <FILTER_LOGS>  Filter logs output. To turn on `stellar_cli::log::footprint=debug` or off `=off`. Can also use env var `RUST_LOG`
+  -q, --quiet                      Do not write logs to stderr including `INFO`
+  -v, --verbose                    Log DEBUG events
+      --very-verbose               Log DEBUG and TRACE events [aliases: --vv]
+      --no-cache                   Do not cache your simulations and transactions [env: STELLAR_NO_CACHE=]

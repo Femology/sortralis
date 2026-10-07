@@ -170,6 +170,7 @@ dependencies = [
  "doctor-report",
  "doctor-runner",
  "doctor-source",
+ "doctor-wasm",
  "semver",
  "serde",
  "serde_json",
@@ -200,6 +201,8 @@ name = "doctor-report"
 version = "0.1.0-alpha.1"
 dependencies = [
  "doctor-core",
+ "doctor-wasm",
+ "serde_json",
 ]
 
 [[package]]
@@ -224,6 +227,13 @@ dependencies = [
 [[package]]
 name = "doctor-wasm"
 version = "0.1.0-alpha.1"
+dependencies = [
+ "doctor-core",
+ "doctor-runner",
+ "serde",
+ "serde_json",
+ "tempfile",
+]
 
 [[package]]
 name = "equivalent"
