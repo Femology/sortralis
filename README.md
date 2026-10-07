@@ -2,14 +2,14 @@
 
 A local-first CLI being built to analyze Soroban contract upgrades before deployment.
 
-**Status: pre-alpha, Phase 7 source storage analysis (`0.1.0-alpha.1`).** `scan` discovers
+**Status: pre-alpha, Phase 8 safe Git source comparison (`0.1.0-alpha.1`).** `scan` discovers
 Cargo workspaces and likely Soroban contract packages. `scan --environment` detects
 Rust, Cargo, and Stellar CLI versions. `check` analyzes source and runs configured
 repository tests and Stellar builds, with captured statuses and diagnostics.
 `explain` documents registered source rules. `compare-source` takes explicit
 `--before <dir> --after <dir>` storage source snapshots; `--json`
 emits machine-readable diff records. Artifact comparison, Wasm inspection, and
-full scan report files remain unfinished. See [storage scope and classifications](docs/storage-analysis.md).
+full scan report files remain unfinished. `sud diff --from X --to Y` compares committed source snapshots without switching the active worktree. See [Git diff safety and scope](docs/git-diff.md). See [storage scope and classifications](docs/storage-analysis.md).
 
 Passing Sortralis is not a security audit and does not prove that an upgrade is safe to deploy.
 
@@ -64,12 +64,13 @@ it makes no upgrade compatibility claim. See [discovery details](docs/cargo-disc
 
 | Crate | Responsibility |
 | --- | --- |
-| doctor-cli | Commands and terminal entry point (the only binary) |
+| doctor-cli | Commands and terminal entry points (the only binary crate) |
 | doctor-core | Shared domain model and analysis coordination |
 | doctor-cargo | Cargo project discovery |
 | doctor-source | Rust source migration checks |
 | doctor-wasm | Wasm interface extraction and comparison |
 | doctor-runner | External command execution |
+| doctor-git | Safe Git object snapshots and ref validation |
 | doctor-report | Terminal, Markdown, and JSON reports |
 
 The `doctor-core` library provides typed models, validated configuration, and pure
@@ -98,7 +99,7 @@ successful hosted CI run.
 
 Direct dependencies are pinned: clap 4.6.7, serde 1.0.229, toml 1.1.6,
 semver 1.0.28, cargo_metadata 0.23.1, syn 3.0.6, proc-macro2 1.0.107,
-and nix 0.31.3 (Unix only).
+nix 0.31.3 (Unix only), and tempfile 3.27.0.
 serde_json 1.0.151 parses Cargo metadata and is also used in tests. Cargo.lock pins
 the full graph.
 This project has been tested on Rust 1.96.0. See the
@@ -202,3 +203,19 @@ returns Cargo exit 101; its integration test expects that failure and a subseque
 successful build. `check` may create lockfiles/build artifacts and run Rust build
 scripts and tests through Cargo. It does not independently run repository shell
 scripts. No report directory is created yet. See [pipeline details](docs/check-pipeline.md).
+
+## Compare committed refs safely
+
+```bash
+cargo run -p doctor-cli --bin sud -- diff --repo ./contract-project --from main --to upgrade
+cargo run -p doctor-cli --bin sud -- diff --repo ./contract-project --from main --to upgrade --json
+```
+
+`sud` is a short binary alias for Sortralis; the existing `sortralis` binary and
+commands remain available. Dirty files are detected and preserved, but excluded
+from committed comparisons. The result summarizes SDK requirements and lockfile
+versions, explicit functions/types/events, storage risks, and introduced/resolved
+rule findings. This is source analysis: no tests, builds, target scripts, Wasm
+inspection, or ledger inspection run. Successful comparison exits 0 even when
+risks are reported; `check` remains the policy-enforcing command.
+See [limitations, cleanup and verified sources](docs/git-diff.md).

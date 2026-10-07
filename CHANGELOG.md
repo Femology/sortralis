@@ -1,5 +1,14 @@
 # Changelog
 
+## Phase 8 — safe Git diff
+
+- Add `doctor-git` object snapshots, validated refs, raw dirty detection and explicit cleanup.
+- Add `sud diff --from --to --repo [--json]` without switching the active worktree.
+- Compare SDK requirements/lock records, explicit source interfaces/events/types,
+  storage risks and rule findings with deterministic evidence.
+- Add real Git/CLI gates preserving branch, HEAD, index and dirty sentinel bytes.
+
+
 ## Unreleased — 0.1.0-alpha.1
 
 - Add normalized source storage inventories and conservative before/after diffs,

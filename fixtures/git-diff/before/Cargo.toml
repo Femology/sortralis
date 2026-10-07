@@ -1,0 +1,9 @@
+[package]
+name = "git-fixture"
+version = "0.1.0"
+edition = "2021"
+[workspace]
+[lib]
+crate-type = ["cdylib", "rlib"]
+[dependencies]
+soroban-sdk = "=27.0.0"

@@ -1,0 +1,14 @@
+[package]
+name = "doctor-git"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+doctor-core = { path = "../doctor-core" }
+doctor-runner = { path = "../doctor-runner" }
+tempfile.workspace = true
+
+[lints]
+workspace = true

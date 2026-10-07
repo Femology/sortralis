@@ -15,6 +15,9 @@ pub struct ContractCandidate {
     pub package: DetectedPackage,
     pub sdk_dependencies: Vec<SdkDependency>,
     pub crate_types: Vec<String>,
+    /// Source directories of normal library/binary targets (not build scripts,
+    /// integration tests, examples or benchmarks), from exact metadata fields.
+    pub source_roots: Vec<PathBuf>,
     pub evidence: Vec<Evidence>,
 }
 
@@ -184,6 +187,24 @@ pub fn analyze_with(
                 package: detected,
                 sdk_dependencies,
                 crate_types: crate_types.into_iter().collect(),
+                source_roots: package
+                    .targets
+                    .iter()
+                    .filter(|target| {
+                        !target.is_custom_build()
+                            && !target.is_test()
+                            && !target.is_example()
+                            && !target.is_bench()
+                    })
+                    .filter_map(|target| {
+                        target
+                            .src_path
+                            .parent()
+                            .map(|path| path.to_path_buf().into_std_path_buf())
+                    })
+                    .collect::<BTreeSet<_>>()
+                    .into_iter()
+                    .collect(),
                 evidence,
             });
         }

@@ -8,6 +8,7 @@ members = [
     "crates/doctor-wasm",
     "crates/doctor-runner",
     "crates/doctor-report",
+    "crates/doctor-git",
 ]
 
 [workspace.package]
@@ -26,6 +27,7 @@ cargo_metadata = "=0.23.1"
 syn = { version = "=3.0.6", default-features = false, features = ["full", "parsing", "visit", "printing"] }
 proc-macro2 = { version = "=1.0.107", features = ["span-locations"] }
 quote = "=1.0.47"
+tempfile = "=3.27.0"
 nix = { version = "=0.31.3", features = ["signal", "process"] }
 
 [workspace.lints.rust]

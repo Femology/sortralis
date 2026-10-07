@@ -11,7 +11,7 @@ use std::{error::Error, fmt, path::PathBuf, process::ExitCode, time::Duration};
     name = "sortralis",
     version,
     about = "Pre-alpha CLI for analyzing Soroban contract upgrades",
-    after_help = "Phase 7: compare-source inventories source storage usage and compares explicit snapshots. Wasm comparison and full scan report files are not implemented.\nPassing Sortralis is not a security audit and does not prove that an upgrade is safe to deploy."
+    after_help = "Phase 8: diff compares committed source snapshots without switching the active worktree. Wasm comparison and full scan report files are not implemented.\nPassing Sortralis is not a security audit and does not prove that an upgrade is safe to deploy."
 )]
 struct Cli {
     #[command(subcommand)]
@@ -29,6 +29,17 @@ enum DoctorCommand {
     },
     /// Compare contract artifacts (not implemented yet)
     Compare,
+    /// Compare committed Git source snapshots without switching the active worktree
+    Diff {
+        #[arg(long)]
+        from: String,
+        #[arg(long)]
+        to: String,
+        #[arg(long, default_value = ".")]
+        repo: PathBuf,
+        #[arg(long)]
+        json: bool,
+    },
     /// Compare storage observations in explicit before/after source snapshots
     CompareSource {
         #[arg(long)]
@@ -59,6 +70,7 @@ impl DoctorCommand {
         match self {
             Self::Scan { .. } => "scan",
             Self::Compare => "compare",
+            Self::Diff { .. } => "diff",
             Self::CompareSource { .. } => "compare-source",
             Self::Check { .. } => "check",
             Self::Explain { .. } => "explain",
@@ -77,15 +89,17 @@ enum CliError {
     Output(std::io::Error),
     Source(doctor_source::SourceError),
     Json(serde_json::Error),
+    Diff(doctor_cli::diff::DiffError),
 }
 
 impl fmt::Display for CliError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Check(error) => write!(formatter, "{error}"),
-            Self::Output(error) => write!(formatter, "cannot write check output: {error}"),
+            Self::Output(error) => write!(formatter, "cannot write output: {error}"),
             Self::Source(error) => write!(formatter, "{error}"),
-            Self::Json(error) => write!(formatter, "cannot serialize storage diff: {error}"),
+            Self::Json(error) => write!(formatter, "cannot serialize result: {error}"),
+            Self::Diff(error) => write!(formatter, "{error}"),
             Self::Environment(error) => write!(formatter, "{error}"),
             Self::Cargo(error) => write!(formatter, "{error}"),
             Self::UnknownRule(id) => write!(formatter, "unknown rule ID: {id}"),
@@ -107,6 +121,7 @@ impl Error for CliError {
             Self::Output(error) => Some(error),
             Self::Source(error) => Some(error),
             Self::Json(error) => Some(error),
+            Self::Diff(error) => Some(error),
             Self::Environment(error) => Some(error),
             Self::Cargo(error) => Some(error),
             _ => None,
@@ -116,6 +131,23 @@ impl Error for CliError {
 
 fn run(cli: Cli) -> Result<ExitCode, CliError> {
     match cli.command {
+        DoctorCommand::Diff {
+            from,
+            to,
+            repo,
+            json,
+        } => {
+            let diff = doctor_cli::diff::git_diff(&repo, &from, &to).map_err(CliError::Diff)?;
+            let mut stdout = std::io::stdout().lock();
+            if json {
+                use std::io::Write;
+                serde_json::to_writer_pretty(&mut stdout, &diff).map_err(CliError::Json)?;
+                writeln!(stdout).map_err(CliError::Output)?;
+            } else {
+                doctor_report::write_git_diff(&mut stdout, &diff).map_err(CliError::Output)?;
+            }
+            Ok(ExitCode::SUCCESS)
+        }
         DoctorCommand::CompareSource {
             before,
             after,
@@ -345,6 +377,7 @@ fn main() -> ExitCode {
                 CliError::Check(error) => ExitCode::from(error.exit_code().as_u8()),
                 CliError::Source(_) => ExitCode::from(2),
                 CliError::Json(_) => ExitCode::from(4),
+                CliError::Diff(error) => ExitCode::from(error.exit_code()),
                 CliError::NotImplemented(_) => ExitCode::FAILURE,
                 CliError::UnknownRule(_) => ExitCode::from(2),
                 CliError::Cargo(CargoError::Path { .. } | CargoError::NoManifest { .. }) => {

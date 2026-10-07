@@ -1,7 +1,9 @@
 //! Parser-based migration rules. Parsing is not compilation or macro expansion.
+mod interface;
 mod rules;
 mod storage;
 use doctor_core::{Evidence, Finding, InvalidRuleId, RuleId};
+pub use interface::{inventory_interface_directory, inventory_interface_text};
 pub use rules::{
     registry, CustomAccountRule, ExportArgumentRule, RuleDocumentation, RuleRegistration,
     SourceRule,

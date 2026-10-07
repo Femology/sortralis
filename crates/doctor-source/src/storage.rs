@@ -31,7 +31,7 @@ fn bare_type(ty: &Type) -> &Type {
 fn storage_like(expr: &Expr) -> bool {
     matches!(bare(expr), Expr::MethodCall(c) if c.method == "storage" || storage_like(&c.receiver))
 }
-fn fields(fields: &Fields) -> (String, Vec<StorageField>) {
+pub(crate) fn fields(fields: &Fields) -> (String, Vec<StorageField>) {
     let shape = match fields {
         Fields::Named(_) => "named",
         Fields::Unnamed(_) => "tuple",

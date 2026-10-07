@@ -145,6 +145,8 @@ pub(crate) fn bindings(items: &[syn::Item], sdk_names: &[String]) -> BTreeMap<St
         for name in [
             "contracttype",
             "contracterror",
+            "contractimpl",
+            "contractevent",
             "Env",
             "Symbol",
             "String",

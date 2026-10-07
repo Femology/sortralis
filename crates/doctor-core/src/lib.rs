@@ -2,9 +2,11 @@
 //! No repository scanning, command execution, or report rendering occurs here.
 
 mod config;
+pub mod git_diff;
 mod models;
 mod policy;
 mod rule_id;
+pub mod source_inventory;
 pub mod storage;
 
 pub use config::{Config, ConfigError, ConfigValidationError, CONFIG_FILE_NAME};
