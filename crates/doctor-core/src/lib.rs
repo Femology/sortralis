@@ -5,6 +5,7 @@ mod config;
 mod models;
 mod policy;
 mod rule_id;
+pub mod storage;
 
 pub use config::{Config, ConfigError, ConfigValidationError, CONFIG_FILE_NAME};
 pub use models::*;

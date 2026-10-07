@@ -11,7 +11,7 @@ use std::{error::Error, fmt, path::PathBuf, process::ExitCode, time::Duration};
     name = "sortralis",
     version,
     about = "Pre-alpha CLI for analyzing Soroban contract upgrades",
-    after_help = "Phase 6: check runs source checks, configured tests, and contract builds. Wasm comparison and report files are not implemented.\nPassing Sortralis is not a security audit and does not prove that an upgrade is safe to deploy."
+    after_help = "Phase 7: compare-source inventories source storage usage and compares explicit snapshots. Wasm comparison and full scan report files are not implemented.\nPassing Sortralis is not a security audit and does not prove that an upgrade is safe to deploy."
 )]
 struct Cli {
     #[command(subcommand)]
@@ -29,6 +29,22 @@ enum DoctorCommand {
     },
     /// Compare contract artifacts (not implemented yet)
     Compare,
+    /// Compare storage observations in explicit before/after source snapshots
+    CompareSource {
+        #[arg(long)]
+        before: PathBuf,
+        #[arg(long)]
+        after: PathBuf,
+        /// Emit the versioned storage diff object to stdout
+        #[arg(long)]
+        json: bool,
+        /// Relative path prefix to exclude on both sides (repeatable)
+        #[arg(long)]
+        exclude: Vec<PathBuf>,
+        /// SDK Rust crate identifiers, including dependency aliases
+        #[arg(long, default_value = "soroban_sdk")]
+        sdk_crate: Vec<String>,
+    },
     /// Run source checks, configured repository tests, and Stellar contract builds
     Check {
         #[arg(default_value = ".")]
@@ -43,6 +59,7 @@ impl DoctorCommand {
         match self {
             Self::Scan { .. } => "scan",
             Self::Compare => "compare",
+            Self::CompareSource { .. } => "compare-source",
             Self::Check { .. } => "check",
             Self::Explain { .. } => "explain",
         }
@@ -58,6 +75,8 @@ enum CliError {
     UnknownRule(String),
     Check(CheckError),
     Output(std::io::Error),
+    Source(doctor_source::SourceError),
+    Json(serde_json::Error),
 }
 
 impl fmt::Display for CliError {
@@ -65,6 +84,8 @@ impl fmt::Display for CliError {
         match self {
             Self::Check(error) => write!(formatter, "{error}"),
             Self::Output(error) => write!(formatter, "cannot write check output: {error}"),
+            Self::Source(error) => write!(formatter, "{error}"),
+            Self::Json(error) => write!(formatter, "cannot serialize storage diff: {error}"),
             Self::Environment(error) => write!(formatter, "{error}"),
             Self::Cargo(error) => write!(formatter, "{error}"),
             Self::UnknownRule(id) => write!(formatter, "unknown rule ID: {id}"),
@@ -84,6 +105,8 @@ impl Error for CliError {
         match self {
             Self::Check(error) => Some(error),
             Self::Output(error) => Some(error),
+            Self::Source(error) => Some(error),
+            Self::Json(error) => Some(error),
             Self::Environment(error) => Some(error),
             Self::Cargo(error) => Some(error),
             _ => None,
@@ -93,6 +116,32 @@ impl Error for CliError {
 
 fn run(cli: Cli) -> Result<ExitCode, CliError> {
     match cli.command {
+        DoctorCommand::CompareSource {
+            before,
+            after,
+            json,
+            exclude,
+            sdk_crate,
+        } => {
+            let options = doctor_source::SourceOptions {
+                exclude,
+                sdk_crate_names: sdk_crate,
+            };
+            let before = doctor_source::inventory_storage_directory(&before, &options)
+                .map_err(CliError::Source)?;
+            let after = doctor_source::inventory_storage_directory(&after, &options)
+                .map_err(CliError::Source)?;
+            let diff = doctor_core::storage::compare_storage(&before, &after);
+            let mut stdout = std::io::stdout().lock();
+            if json {
+                use std::io::Write;
+                serde_json::to_writer_pretty(&mut stdout, &diff).map_err(CliError::Json)?;
+                writeln!(stdout).map_err(CliError::Output)?;
+            } else {
+                doctor_report::write_storage_diff(&mut stdout, &diff).map_err(CliError::Output)?;
+            }
+            Ok(ExitCode::SUCCESS)
+        }
         DoctorCommand::Scan {
             path,
             environment: true,
@@ -294,6 +343,8 @@ fn main() -> ExitCode {
             eprintln!("error: {error}");
             match error {
                 CliError::Check(error) => ExitCode::from(error.exit_code().as_u8()),
+                CliError::Source(_) => ExitCode::from(2),
+                CliError::Json(_) => ExitCode::from(4),
                 CliError::NotImplemented(_) => ExitCode::FAILURE,
                 CliError::UnknownRule(_) => ExitCode::from(2),
                 CliError::Cargo(CargoError::Path { .. } | CargoError::NoManifest { .. }) => {

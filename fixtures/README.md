@@ -7,6 +7,9 @@
 - `workspace-inherited`: metadata-only nested member inheriting SDK 28.0.0.
 - `non-soroban`: metadata-only cdylib Rust library without SDK dependencies.
 - `source`: parser-only positive/negative migration patterns.
+- `storage`: parser-only before/after storage snapshots. The baseline is
+  `identical`; each other directory changes one schema observation, including
+  a deliberately unrelated contracttype. See docs/storage-analysis.md.
 
 Discovery tests remain offline metadata-only and verify no target modifications.
 Phase 6 opt-in real-tool tests copy healthy-v28/failing-tests to temporary directories

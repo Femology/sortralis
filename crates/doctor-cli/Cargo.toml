@@ -21,6 +21,8 @@ semver.workspace = true
 doctor-source = { path = "../doctor-source" }
 doctor-cargo = { path = "../doctor-cargo" }
 doctor-runner = { path = "../doctor-runner" }
+doctor-report = { path = "../doctor-report" }
+serde_json.workspace = true
 
 [lints]
 workspace = true

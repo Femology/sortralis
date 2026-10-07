@@ -2,6 +2,11 @@
 
 ## Unreleased — 0.1.0-alpha.1
 
+- Add normalized source storage inventories and conservative before/after diffs,
+  with key/durability/value/contracttype evidence and explicit uncertainty.
+- Add compare-source for human-readable or JSON storage diff records, parser-only
+  fixtures and a conservative classification gate. No exact ledger schema claim.
+
 - Implement check configuration/environment/Cargo/source/test/build aggregation
   and exit policy, preserving raw diagnostics and explicit command results.
 - Centralize the verified SDK v28 Stellar CLI build requirement.

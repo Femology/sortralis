@@ -2,12 +2,14 @@
 
 A local-first CLI being built to analyze Soroban contract upgrades before deployment.
 
-**Status: pre-alpha, Phase 6 check pipeline (`0.1.0-alpha.1`).** `scan` discovers
+**Status: pre-alpha, Phase 7 source storage analysis (`0.1.0-alpha.1`).** `scan` discovers
 Cargo workspaces and likely Soroban contract packages. `scan --environment` detects
 Rust, Cargo, and Stellar CLI versions. `check` analyzes source and runs configured
 repository tests and Stellar builds, with captured statuses and diagnostics.
-`explain` documents registered source rules. Comparison, Wasm inspection, and
-report files remain unfinished.
+`explain` documents registered source rules. `compare-source` takes explicit
+`--before <dir> --after <dir>` storage source snapshots; `--json`
+emits machine-readable diff records. Artifact comparison, Wasm inspection, and
+full scan report files remain unfinished. See [storage scope and classifications](docs/storage-analysis.md).
 
 Passing Sortralis is not a security audit and does not prove that an upgrade is safe to deploy.
 

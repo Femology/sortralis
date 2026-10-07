@@ -166,9 +166,11 @@ dependencies = [
  "clap",
  "doctor-cargo",
  "doctor-core",
+ "doctor-report",
  "doctor-runner",
  "doctor-source",
  "semver",
+ "serde_json",
 ]
 
 [[package]]
@@ -183,6 +185,9 @@ dependencies = [
 [[package]]
 name = "doctor-report"
 version = "0.1.0-alpha.1"
+dependencies = [
+ "doctor-core",
+]
 
 [[package]]
 name = "doctor-runner"
@@ -199,6 +204,7 @@ version = "0.1.0-alpha.1"
 dependencies = [
  "doctor-core",
  "proc-macro2",
+ "quote",
  "syn",
 ]
 

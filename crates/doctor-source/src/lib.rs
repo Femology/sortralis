@@ -1,5 +1,6 @@
 //! Parser-based migration rules. Parsing is not compilation or macro expansion.
 mod rules;
+mod storage;
 use doctor_core::{Evidence, Finding, InvalidRuleId, RuleId};
 pub use rules::{
     registry, CustomAccountRule, ExportArgumentRule, RuleDocumentation, RuleRegistration,
@@ -10,6 +11,7 @@ use std::{
     fmt, fs, io,
     path::{Component, Path, PathBuf},
 };
+pub use storage::{inventory_storage_directory, inventory_storage_text};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TargetContext {

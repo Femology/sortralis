@@ -85,7 +85,7 @@ pub fn registry() -> &'static [RuleRegistration] {
 
 // Track direct module-level imports, rather than equating every macro with the
 // same final identifier to the SDK. This is deliberately not a Rust name resolver.
-fn bindings(items: &[syn::Item], sdk_names: &[String]) -> BTreeMap<String, String> {
+pub(crate) fn bindings(items: &[syn::Item], sdk_names: &[String]) -> BTreeMap<String, String> {
     fn imports(tree: &UseTree, prefix: &mut Vec<String>, output: &mut Vec<(Vec<String>, String)>) {
         match tree {
             UseTree::Path(path) => {
@@ -142,7 +142,14 @@ fn bindings(items: &[syn::Item], sdk_names: &[String]) -> BTreeMap<String, Strin
             .iter()
             .any(|(path, _)| path.len() == 2 && is_sdk(path) && path[1] == "*")
     {
-        for name in ["contracttype", "contracterror"] {
+        for name in [
+            "contracttype",
+            "contracterror",
+            "Env",
+            "Symbol",
+            "String",
+            "symbol_short",
+        ] {
             map.insert(name.into(), name.into());
         }
     }
