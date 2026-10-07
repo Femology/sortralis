@@ -3,10 +3,10 @@ use std::{error::Error, fmt, process::ExitCode};
 
 #[derive(Debug, Parser)]
 #[command(
-    name = "soroban-upgrade-doctor",
+    name = "sortralis",
     version,
-    about = "Pre-alpha scaffold for analyzing Soroban contract upgrades",
-    after_help = "Phase 1: help and version only. Analysis commands are not implemented yet.\nPassing Soroban Upgrade Doctor is not a security audit and does not prove that an upgrade is safe to deploy."
+    about = "Pre-alpha CLI for analyzing Soroban contract upgrades",
+    after_help = "Phase 2: help and version only. Analysis commands are not implemented yet.\nPassing Sortralis is not a security audit and does not prove that an upgrade is safe to deploy."
 )]
 struct Cli {
     #[command(subcommand)]
@@ -15,13 +15,13 @@ struct Cli {
 
 #[derive(Debug, Subcommand)]
 enum DoctorCommand {
-    /// Scan a repository (not implemented in Phase 1)
+    /// Scan a repository (not implemented yet)
     Scan,
-    /// Compare contract artifacts (not implemented in Phase 1)
+    /// Compare contract artifacts (not implemented yet)
     Compare,
-    /// Check upgrade readiness (not implemented in Phase 1)
+    /// Check upgrade readiness (not implemented yet)
     Check,
-    /// Explain a rule (not implemented in Phase 1)
+    /// Explain a rule (not implemented yet)
     Explain,
 }
 
@@ -38,15 +38,15 @@ impl DoctorCommand {
 
 #[derive(Debug)]
 enum CliError {
-    NotImplementedInPhaseOne(DoctorCommand),
+    NotImplemented(DoctorCommand),
 }
 
 impl fmt::Display for CliError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::NotImplementedInPhaseOne(command) => write!(
+            Self::NotImplemented(command) => write!(
                 formatter,
-                "'{}' is not implemented in Phase 1; use --help or --version",
+                "'{}' is not implemented yet; use --help or --version",
                 command.name()
             ),
         }
@@ -56,7 +56,7 @@ impl fmt::Display for CliError {
 impl Error for CliError {}
 
 fn run(cli: Cli) -> Result<(), CliError> {
-    Err(CliError::NotImplementedInPhaseOne(cli.command))
+    Err(CliError::NotImplemented(cli.command))
 }
 
 fn main() -> ExitCode {

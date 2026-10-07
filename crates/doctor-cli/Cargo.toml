@@ -4,10 +4,10 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 publish.workspace = true
-description = "Pre-alpha command-line scaffold for Soroban Upgrade Doctor"
+description = "Pre-alpha command-line scaffold for Sortralis"
 
 [[bin]]
-name = "soroban-upgrade-doctor"
+name = "sortralis"
 path = "src/main.rs"
 
 [[test]]
