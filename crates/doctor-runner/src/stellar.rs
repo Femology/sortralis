@@ -83,6 +83,22 @@ impl<'a, R: CommandRunner> StellarCli<'a, R> {
             timeout,
         }
     }
+    /// Verified CLI 27 copies package-name.replace('-', '_') + .wasm into out_dir.
+    pub fn build_to_request(
+        directory: &Path,
+        timeout: Duration,
+        package: &str,
+        out_dir: &Path,
+    ) -> CommandSpec {
+        let mut request = Self::build_request(directory, timeout);
+        request.args.extend([
+            "--package".into(),
+            package.into(),
+            "--out-dir".into(),
+            out_dir.as_os_str().into(),
+        ]);
+        request
+    }
     fn run(&self, mut request: CommandSpec) -> Result<CapturedCommand, StellarError> {
         request.program = self.executable.clone();
         let capture = self

@@ -8,7 +8,9 @@ pub use environment::{
     detect_environment, detect_environment_with, inspect_tool, parse_version, Environment,
     EnvironmentError, ToolDetection, ToolState,
 };
-pub use execution::{execute, CapturedCommand, CommandSpec, RunnerError};
+pub use execution::{
+    execute, execute_bounded, CapturedCommand, CommandSpec, RunnerError, OUTPUT_TRUNCATION_MARKER,
+};
 
 /// Injectable boundary for explicitly requested subprocesses.
 pub trait CommandRunner {
@@ -23,3 +25,15 @@ impl CommandRunner for SystemRunner {
 
 pub mod stellar;
 pub use stellar::{InfoOperation, StellarCli, StellarError};
+
+pub mod redaction;
+pub use redaction::{redact, safe_command};
+/// Production verification boundary: output is bounded during pipe draining.
+pub struct BoundedRunner {
+    pub limit: usize,
+}
+impl CommandRunner for BoundedRunner {
+    fn execute(&self, request: &CommandSpec) -> Result<CapturedCommand, RunnerError> {
+        execute_bounded(request, self.limit)
+    }
+}

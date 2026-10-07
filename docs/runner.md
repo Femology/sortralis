@@ -29,7 +29,10 @@ On other platforms only the direct child is killed. Descendants that deliberatel
 escape a Unix group can also survive. Blocking reader threads can remain until
 those pipes close or produce another chunk; cancellation prevents continued
 buffer growth after returning. This is timeout management, not a process sandbox.
-Captured output is buffered in memory without a size cap in this phase.
+The legacy `execute` API buffers output without a size cap. Phase 10 adds
+`execute_bounded` and `BoundedRunner`, which keep at most the configured byte
+limit per stream while continuing to drain both pipes. Explicit verification
+uses this bounded path; see [verification.md](verification.md).
 Only Linux behavior has been verified.
 
 ## Environment detection

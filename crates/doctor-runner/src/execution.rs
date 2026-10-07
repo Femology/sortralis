@@ -68,13 +68,42 @@ impl Error for RunnerError {
     }
 }
 
-type OutputBuffer = Arc<Mutex<Vec<u8>>>;
+pub const OUTPUT_TRUNCATION_MARKER: &[u8] = b"\n[OUTPUT TRUNCATED]\n";
+struct Buffer {
+    bytes: Vec<u8>,
+    limit: Option<usize>,
+    truncated: bool,
+}
+impl Buffer {
+    fn append(&mut self, chunk: &[u8]) {
+        let available = self
+            .limit
+            .map(|l| l.saturating_sub(self.bytes.len()))
+            .unwrap_or(chunk.len());
+        let retained = chunk.len().min(available);
+        self.bytes.extend_from_slice(&chunk[..retained]);
+        self.truncated |= retained != chunk.len();
+    }
+    fn snapshot(&self) -> Vec<u8> {
+        let mut bytes = self.bytes.clone();
+        if self.truncated {
+            let limit = self.limit.unwrap_or(bytes.len());
+            bytes.truncate(limit.saturating_sub(OUTPUT_TRUNCATION_MARKER.len()));
+            let remaining = limit.saturating_sub(bytes.len());
+            bytes.extend_from_slice(
+                &OUTPUT_TRUNCATION_MARKER[..OUTPUT_TRUNCATION_MARKER.len().min(remaining)],
+            );
+        }
+        bytes
+    }
+}
+type OutputBuffer = Arc<Mutex<Buffer>>;
 
 fn snapshot(buffer: &OutputBuffer) -> Vec<u8> {
     buffer
         .lock()
         .unwrap_or_else(|poisoned| poisoned.into_inner())
-        .clone()
+        .snapshot()
 }
 
 fn capture(
@@ -126,7 +155,7 @@ fn reader(
                     Ok(size) => buffer
                         .lock()
                         .unwrap_or_else(|poisoned| poisoned.into_inner())
-                        .extend_from_slice(&chunk[..size]),
+                        .append(&chunk[..size]),
                     Err(error) if error.kind() == io::ErrorKind::Interrupted => continue,
                     Err(error) => break Err(error),
                 }
@@ -206,6 +235,16 @@ fn exit_status(status: ExitStatus) -> CommandStatus {
 /// Uses Command with separate arguments and null stdin, never a shell wrapper.
 /// On Unix, timeout kills the process group. Other platforms kill the direct child.
 pub fn execute(spec: &CommandSpec) -> Result<CapturedCommand, RunnerError> {
+    execute_internal(spec, None)
+}
+/// Drain both streams to EOF while retaining at most limit bytes per stream.
+pub fn execute_bounded(spec: &CommandSpec, limit: usize) -> Result<CapturedCommand, RunnerError> {
+    execute_internal(spec, Some(limit))
+}
+fn execute_internal(
+    spec: &CommandSpec,
+    limit: Option<usize>,
+) -> Result<CapturedCommand, RunnerError> {
     if spec.timeout.is_zero() {
         return Err(RunnerError::InvalidTimeout);
     }
@@ -254,8 +293,16 @@ pub fn execute(spec: &CommandSpec) -> Result<CapturedCommand, RunnerError> {
         reaped: false,
         armed: true,
     };
-    let stdout = Arc::new(Mutex::new(Vec::new()));
-    let stderr = Arc::new(Mutex::new(Vec::new()));
+    let stdout = Arc::new(Mutex::new(Buffer {
+        bytes: vec![],
+        limit,
+        truncated: false,
+    }));
+    let stderr = Arc::new(Mutex::new(Buffer {
+        bytes: vec![],
+        limit,
+        truncated: false,
+    }));
     let cancel = CancelReaders(Arc::new(AtomicBool::new(false)));
     let fail = |managed: &mut ManagedChild, stage, source: io::Error| -> RunnerError {
         let cleanup = managed.terminate().err();

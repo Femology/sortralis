@@ -11,7 +11,7 @@ use std::{error::Error, fmt, path::PathBuf, process::ExitCode, time::Duration};
     name = "sortralis",
     version,
     about = "Pre-alpha CLI for analyzing Soroban contract upgrades",
-    after_help = "Phase 9: wasm inspects local artifacts; diff compares committed source snapshots without switching the active worktree. Artifact comparison and full scan report files are not implemented.\nPassing Sortralis is not a security audit and does not prove that an upgrade is safe to deploy."
+    after_help = "Phase 10: doctor --verify records ordered verification; wasm inspects local artifacts; diff compares committed source snapshots without switching the active worktree. Artifact comparison and full scan report files are not implemented.\nPassing Sortralis is not a security audit and does not prove that an upgrade is safe to deploy."
 )]
 struct Cli {
     #[command(subcommand)]
@@ -20,6 +20,17 @@ struct Cli {
 
 #[derive(Debug, Subcommand)]
 enum DoctorCommand {
+    /// Discover source packages, or explicitly execute ordered project verification
+    Doctor {
+        #[arg(default_value = ".")]
+        path: PathBuf,
+        #[arg(long)]
+        verify: bool,
+        #[arg(long, requires = "verify")]
+        json: bool,
+        #[arg(long, requires = "verify")]
+        skip_clippy: bool,
+    },
     /// Discover Cargo packages and Soroban candidates; --environment detects tool versions only
     Scan {
         #[arg(default_value = ".")]
@@ -75,6 +86,7 @@ impl DoctorCommand {
     fn name(&self) -> &'static str {
         match self {
             Self::Scan { .. } => "scan",
+            Self::Doctor { .. } => "doctor",
             Self::Compare => "compare",
             Self::Wasm { .. } => "wasm",
             Self::Diff { .. } => "diff",
@@ -98,6 +110,7 @@ enum CliError {
     Json(serde_json::Error),
     Diff(doctor_cli::diff::DiffError),
     Wasm(doctor_wasm::WasmError),
+    Verification(doctor_cli::verify::VerificationError),
 }
 
 impl fmt::Display for CliError {
@@ -109,6 +122,7 @@ impl fmt::Display for CliError {
             Self::Json(error) => write!(formatter, "cannot serialize result: {error}"),
             Self::Diff(error) => write!(formatter, "{error}"),
             Self::Wasm(error) => write!(formatter, "{error}"),
+            Self::Verification(error) => write!(formatter, "{error}"),
             Self::Environment(error) => write!(formatter, "{error}"),
             Self::Cargo(error) => write!(formatter, "{error}"),
             Self::UnknownRule(id) => write!(formatter, "unknown rule ID: {id}"),
@@ -140,6 +154,39 @@ impl Error for CliError {
 
 fn run(cli: Cli) -> Result<ExitCode, CliError> {
     match cli.command {
+        DoctorCommand::Doctor {
+            path,
+            verify: false,
+            ..
+        } => run(Cli {
+            command: DoctorCommand::Scan {
+                path,
+                environment: false,
+            },
+        }),
+        DoctorCommand::Doctor {
+            path,
+            verify: true,
+            json,
+            skip_clippy,
+        } => {
+            let options = doctor_cli::verify::VerificationOptions {
+                skip_clippy,
+                ..Default::default()
+            };
+            let report =
+                doctor_cli::verify::verify(&path, &options).map_err(CliError::Verification)?;
+            let mut stdout = std::io::stdout().lock();
+            if json {
+                use std::io::Write;
+                serde_json::to_writer_pretty(&mut stdout, &report).map_err(CliError::Json)?;
+                writeln!(stdout).map_err(CliError::Output)?;
+            } else {
+                doctor_report::write_verification(&mut stdout, &report)
+                    .map_err(CliError::Output)?;
+            }
+            Ok(ExitCode::from(report.exit_code.as_u8()))
+        }
         DoctorCommand::Wasm { path, json } => {
             let cwd = std::env::current_dir().map_err(CliError::Output)?;
             let report = doctor_wasm::inspect(&path, &cwd).map_err(CliError::Wasm)?;
@@ -402,6 +449,7 @@ fn main() -> ExitCode {
                 CliError::Json(_) => ExitCode::from(4),
                 CliError::Diff(error) => ExitCode::from(error.exit_code()),
                 CliError::Wasm(error) => ExitCode::from(error.exit_code()),
+                CliError::Verification(error) => ExitCode::from(error.exit_code()),
                 CliError::NotImplemented(_) => ExitCode::FAILURE,
                 CliError::UnknownRule(_) => ExitCode::from(2),
                 CliError::Cargo(CargoError::Path { .. } | CargoError::NoManifest { .. }) => {

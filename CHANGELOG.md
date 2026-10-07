@@ -1,5 +1,13 @@
 # Changelog
 
+## Phase 10 — explicit verification runner
+
+- Add `sud doctor PATH --verify [--json]` with ordered, structured command steps.
+- Keep target default features/lint policy, with explicit Clippy/configuration skips.
+- Bound pipe capture and redact likely secrets in command/output/finding evidence.
+- Build each contract into a fresh private output directory; skip dependent inspection on failure.
+- Add multi-contract, failure, output/redaction and real P28/compiler-failure gates.
+
 ## Phase 9 — Stellar adapter and local Wasm inspection
 
 - Centralize verified Stellar version/build/local-info command construction.

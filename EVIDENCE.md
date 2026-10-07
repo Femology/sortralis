@@ -106,3 +106,26 @@ recorded results and are not claimed as real CLI execution. A separate opt-in
 full real inspection copies `SUD_TEST_WASM` to a path with spaces and verifies
 its bytes remain unchanged. It was executed locally against the observed SDK
 bundled artifact; full Stellar builds are not part of Phase 9 inspection.
+
+## Phase 10: verification artifact paths and limits
+
+Reran `stellar contract build --help` before extending the adapter. CLI 27.0.0
+supports `--package` and `--out-dir`. Exact-version official
+[build implementation](https://github.com/stellar/stellar-cli/blob/v27.0.0/cmd/soroban-cli/src/commands/contract/build.rs)
+was inspected: lines 288–300 derive the filename from the package name with
+hyphens replaced by underscores and copy the artifact into the supplied out-dir.
+Verification uses that convention with a separate fresh OS temporary output
+directory per contract. It does not guess Cargo's target directory or search
+outside those directories. All Stellar argv construction remains in the adapter.
+
+Target checks use `cargo fmt --all -- --check`, `cargo test --workspace`, and
+`cargo clippy --workspace --all-targets`; default features and target lint policy
+are retained. Core/report model and bounded/redacted evidence are documented in
+[verification scope](docs/verification.md). Existing exact tempfile 3.27.0 and
+runner dependencies were reused; no new external package/version was introduced.
+
+The healthy-v28 fixture sources were rustfmt-formatted because formatting is now
+an explicit real verification step; their contract/test behavior is unchanged.
+A separate verification-failing-build fixture has an intentional compile_error
+and the existing verified SDK 28.0.0 requirement. It demonstrates that a failed
+target build is JSON report data, not a Doctor crash.

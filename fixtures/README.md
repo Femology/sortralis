@@ -34,3 +34,11 @@ used to record JSON was built with SDK 21.0.1-preview.1 (per its metadata), desp
 being distributed in the SDK 28.0.0 package. No Wasm binary is redistributed.
 Absent-section diagnostics are recorded real exit-1 output from a minimal local
 Wasm module; fixture-backed process doubles are distinguished from real smoke tests.
+
+
+`healthy-v28` is now rustfmt-formatted for the Phase 10 explicit formatting gate;
+its tests/contract functions are unchanged. `verification-failing-build` intentionally
+fails compilation with a recognizable diagnostic and uses verified SDK 28.0.0.
+Real opt-in verification tests distinguish the green multi-contract workflow from
+a normal failed-build JSON report. `doctor-runner/tests/fixtures/secret-redaction.txt`
+contains synthetic secret and Stellar-shaped public identifier examples only.

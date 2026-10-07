@@ -7,12 +7,16 @@ pub struct Beta;
 
 #[contractimpl]
 impl Beta {
-    pub fn add(x: u32, y: u32) -> u32 { x + y }
+    pub fn add(x: u32, y: u32) -> u32 {
+        x + y
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     #[test]
-    fn adds_values() { assert_eq!(Beta::add(2, 3), 5); }
+    fn adds_values() {
+        assert_eq!(Beta::add(2, 3), 5);
+    }
 }

@@ -211,3 +211,48 @@ pub fn write_wasm_inspection(
     )?;
     writeln!(output, "{}", report.scope)
 }
+
+pub fn write_verification(
+    output: &mut impl std::io::Write,
+    report: &doctor_core::verification::VerificationReport,
+) -> std::io::Result<()> {
+    writeln!(
+        output,
+        "Verification workspace: {:?}",
+        report.repository_path
+    )?;
+    for step in &report.steps {
+        writeln!(
+            output,
+            "{}: {:?}; exit {:?}; {} ms",
+            step.name, step.status, step.exit_code, step.duration_millis
+        )?;
+        if let Some(command) = &step.displayed_command {
+            writeln!(output, "  Command: {command}")?;
+        }
+        if let Some(reason) = &step.reason {
+            writeln!(output, "  Reason: {reason:?}")?;
+        }
+        if let Some(command) = &step.command {
+            if !command.stdout.is_empty() {
+                writeln!(
+                    output,
+                    "  stdout (truncated={}): {:?}",
+                    step.stdout_truncated, command.stdout
+                )?;
+            }
+            if !command.stderr.is_empty() {
+                writeln!(
+                    output,
+                    "  stderr (truncated={}): {:?}",
+                    step.stderr_truncated, command.stderr
+                )?;
+            }
+        }
+        if let Some(finding) = &step.finding {
+            writeln!(output, "  {}: {}", finding.id.as_str(), finding.summary)?;
+        }
+    }
+    writeln!(output, "Verification exit: {}", report.exit_code.as_u8())?;
+    writeln!(output, "{}", report.scope)
+}

@@ -2,7 +2,7 @@
 
 A local-first CLI being built to analyze Soroban contract upgrades before deployment.
 
-**Status: pre-alpha, Phase 9 local Wasm inspection (`0.1.0-alpha.1`).** `scan` discovers
+**Status: pre-alpha, Phase 10 explicit verification (`0.1.0-alpha.1`).** `scan` discovers
 Cargo workspaces and likely Soroban contract packages. `scan --environment` detects
 Rust, Cargo, and Stellar CLI versions. `check` analyzes source and runs configured
 repository tests and Stellar builds, with captured statuses and diagnostics.
@@ -245,3 +245,18 @@ To run full real inspection against a local contract:
 ```bash
 SUD_TEST_WASM=/absolute/path/contract.wasm cargo test -p doctor-wasm --test adapter -- --ignored --nocapture
 ```
+
+## Explicit project verification
+
+```bash
+cargo run -p doctor-cli --bin sud -- doctor ./contract-project --verify
+cargo run -p doctor-cli --bin sud -- doctor ./contract-project --verify --json
+```
+
+Without `--verify`, `doctor` performs Cargo discovery only. Verification records
+formatting, workspace tests, Clippy, separate contract builds and local artifact
+inspection in order, using default features. Failures remain structured results;
+a failed build skips its dependent inspection while independent checks/contracts
+continue. Output is bounded, likely secrets are redacted, and public Stellar
+addresses remain visible. `--skip-clippy` explicitly records an omitted check.
+See [ordering, defaults, artifact discovery, limits and tests](docs/verification.md).

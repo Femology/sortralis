@@ -148,3 +148,17 @@ fn zero_timeout_is_rejected_before_spawning() {
         Err(doctor_runner::RunnerError::InvalidTimeout)
     ));
 }
+
+#[test]
+fn bounded_capture_drains_large_streams_and_keeps_real_exit_status() {
+    let result = doctor_runner::execute_bounded(&request("flood"), 4096).unwrap();
+    assert_eq!(result.record.status, CommandStatus::Exited { code: 0 });
+    assert!(result.stdout_bytes.len() <= 4096);
+    assert!(result.stderr_bytes.len() <= 4096);
+    assert!(result
+        .stdout_bytes
+        .ends_with(doctor_runner::OUTPUT_TRUNCATION_MARKER));
+    assert!(result
+        .stderr_bytes
+        .ends_with(doctor_runner::OUTPUT_TRUNCATION_MARKER));
+}
