@@ -1,0 +1,54 @@
+#![allow(clippy::unwrap_used)]
+
+use std::process::Command;
+
+#[test]
+fn help_succeeds_and_lists_all_phase_one_commands() {
+    let output = Command::new(env!("CARGO_BIN_EXE_soroban-upgrade-doctor"))
+        .arg("--help")
+        .output()
+        .unwrap();
+    assert!(output.status.success(), "{:?}", output);
+    assert!(output.stderr.is_empty());
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    for command in ["scan", "compare", "check", "explain"] {
+        assert!(
+            stdout
+                .lines()
+                .any(|line| line.split_whitespace().next() == Some(command)),
+            "missing command {command}: {stdout}"
+        );
+    }
+}
+
+#[test]
+fn version_reports_the_package_version() {
+    let output = Command::new(env!("CARGO_BIN_EXE_soroban-upgrade-doctor"))
+        .arg("--version")
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    assert!(output.stderr.is_empty());
+    assert_eq!(
+        String::from_utf8(output.stdout).unwrap().trim(),
+        concat!("soroban-upgrade-doctor ", env!("CARGO_PKG_VERSION"))
+    );
+}
+
+#[test]
+fn unfinished_commands_fail_explicitly_without_success_output() {
+    for command in ["scan", "compare", "check", "explain"] {
+        let output = Command::new(env!("CARGO_BIN_EXE_soroban-upgrade-doctor"))
+            .arg(command)
+            .output()
+            .unwrap();
+        assert!(
+            !output.status.success(),
+            "{command} must not report success"
+        );
+        assert!(output.stdout.is_empty());
+        let stderr = String::from_utf8(output.stderr).unwrap();
+        assert!(stderr.contains(command), "{stderr}");
+        assert!(stderr.contains("not implemented in Phase 1"), "{stderr}");
+    }
+}

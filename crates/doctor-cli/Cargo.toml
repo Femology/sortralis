@@ -1,0 +1,21 @@
+[package]
+name = "doctor-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+description = "Pre-alpha command-line scaffold for Soroban Upgrade Doctor"
+
+[[bin]]
+name = "soroban-upgrade-doctor"
+path = "src/main.rs"
+
+[[test]]
+name = "cli"
+path = "../../tests/cli/help.rs"
+
+[dependencies]
+clap.workspace = true
+
+[lints]
+workspace = true
