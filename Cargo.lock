@@ -166,6 +166,7 @@ dependencies = [
  "clap",
  "doctor-cargo",
  "doctor-runner",
+ "doctor-source",
 ]
 
 [[package]]
@@ -193,6 +194,11 @@ dependencies = [
 [[package]]
 name = "doctor-source"
 version = "0.1.0-alpha.1"
+dependencies = [
+ "doctor-core",
+ "proc-macro2",
+ "syn",
+]
 
 [[package]]
 name = "doctor-wasm"

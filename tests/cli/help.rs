@@ -37,7 +37,7 @@ fn version_reports_the_package_version() {
 
 #[test]
 fn unfinished_commands_fail_explicitly_without_success_output() {
-    for command in ["compare", "check", "explain"] {
+    for command in ["compare", "check"] {
         let output = Command::new(env!("CARGO_BIN_EXE_sortralis"))
             .arg(command)
             .output()
@@ -136,4 +136,40 @@ fn scan_non_cargo_input_and_missing_cargo_fail_usefully() {
     assert!(String::from_utf8(output.stderr)
         .unwrap()
         .contains("Cargo metadata failed"));
+}
+
+#[test]
+fn explain_returns_registry_docs_and_manual_rule_status() {
+    for id in [
+        "SDK28_REMOVED_EXPORT_ARGUMENT",
+        "CUSTOM_ACCOUNT_EXECUTABLE_REVIEW",
+        "SDK28_EVENT_SHAPE_REVIEW",
+    ] {
+        let output = Command::new(env!("CARGO_BIN_EXE_sortralis"))
+            .args(["explain", id])
+            .output()
+            .unwrap();
+        assert!(output.status.success(), "{:?}", output);
+        let stdout = String::from_utf8(output.stdout).unwrap();
+        assert!(stdout.contains(id));
+        assert!(stdout.contains("https://github.com/stellar/rs-soroban-sdk/blob/v28.0.0/"));
+        if id == "SDK28_EVENT_SHAPE_REVIEW" {
+            assert!(stdout.contains("Manual only"));
+        }
+    }
+}
+#[test]
+fn explain_unknown_or_missing_rule_returns_invalid_input() {
+    for args in [
+        vec!["explain"],
+        vec!["explain", "UNKNOWN_RULE"],
+        vec!["explain", "sdk28_removed_export_argument"],
+    ] {
+        let output = Command::new(env!("CARGO_BIN_EXE_sortralis"))
+            .args(args)
+            .output()
+            .unwrap();
+        assert_eq!(output.status.code(), Some(2));
+        assert!(!output.stderr.is_empty());
+    }
 }

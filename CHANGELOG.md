@@ -2,6 +2,12 @@
 
 ## Unreleased — 0.1.0-alpha.1
 
+- Add parser-based SDK v28 export-argument and custom-account review rules with
+  grouped findings, stable IDs, and precise file/line evidence.
+- Register an explicit manual-only event-shape review and implement `explain`.
+- Add read-only source traversal with default/custom exclusions, symlink skipping,
+  and typed parse/read errors; verify positive/negative source fixtures.
+
 - Discover Cargo workspaces and likely Soroban contract packages with offline,
   non-resolving metadata, inherited SDK requirements, and path evidence.
 - Add real Cargo discovery summaries to `scan`, retaining environment-only mode.
@@ -25,6 +31,6 @@
 - Add CLI integration tests and workspace lint configuration.
 - Add a GitHub Actions quality workflow and contributor/security documentation.
 
-Full upgrade analysis, source rule detection, CLI configuration wiring, contract
+Full upgrade analysis, expanded source rules, CLI configuration wiring, contract
 build/test orchestration, Wasm inspection, comparison, and report generation
 remain unimplemented.

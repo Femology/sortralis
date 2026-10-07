@@ -2,11 +2,11 @@
 
 A local-first CLI being built to analyze Soroban contract upgrades before deployment.
 
-**Status: pre-alpha, Phase 4 Cargo discovery (`0.1.0-alpha.1`).** `scan` discovers
+**Status: pre-alpha, Phase 5 source rules (`0.1.0-alpha.1`).** `scan` discovers
 Cargo workspaces and likely Soroban contract packages. `scan --environment` detects
-Rust, Cargo, and Stellar CLI versions. Full upgrade analysis, `compare`, `check`,
-and `explain` remain unfinished. No contract builds, repository tests, or reports
-run automatically.
+Rust, Cargo, and Stellar CLI versions. Full upgrade analysis, `compare`, and `check`
+remain unfinished; `explain <RULE_ID>` documents registered source rules. No contract
+builds, repository tests, or reports run automatically.
 
 Passing Sortralis is not a security audit and does not prove that an upgrade is safe to deploy.
 
@@ -71,8 +71,8 @@ it makes no upgrade compatibility claim. See [discovery details](docs/cargo-disc
 The `doctor-core` library provides typed models, validated configuration, and pure
 policy evaluation. `doctor-runner` executes explicitly requested programs with
 separate arguments, timeout handling, concurrent output capture, and environment
-detection. `doctor-cargo` discovers packages from Cargo metadata. The remaining three
-libraries establish boundaries only. See [runner behavior](docs/runner.md).
+detection. `doctor-cargo` discovers packages from Cargo metadata. `doctor-source` provides a parser-based rule engine; the remaining two libraries
+establish boundaries only. See [runner behavior](docs/runner.md).
 CLI integration tests live in `tests/cli/help.rs` and are explicitly registered
 in `crates/doctor-cli/Cargo.toml`. Metadata-only Cargo fixtures live in `fixtures/`;
 they are not contract build verification. The `scripts/` directory is reserved for later phases.
@@ -91,7 +91,8 @@ commands on pushes and pull requests. A workflow file is not evidence of a
 successful hosted CI run.
 
 Direct dependencies are pinned: clap 4.6.7, serde 1.0.229, toml 1.1.6,
-semver 1.0.28, cargo_metadata 0.23.1, and nix 0.31.3 (Unix only).
+semver 1.0.28, cargo_metadata 0.23.1, syn 3.0.6, proc-macro2 1.0.107,
+and nix 0.31.3 (Unix only).
 serde_json 1.0.151 parses Cargo metadata and is also used in tests. Cargo.lock pins
 the full graph.
 This project has been tested on Rust 1.96.0. See the
@@ -138,3 +139,20 @@ These verdicts are data values, not evidence that an analysis has run.
 
 Failure outcomes take precedence over finding policy. The current unfinished CLI
 commands still return 1; the core policy is not yet connected to an analysis pipeline.
+
+## Source migration rules
+
+```bash
+cargo run -p doctor-cli -- explain SDK28_REMOVED_EXPORT_ARGUMENT
+cargo run -p doctor-cli -- explain CUSTOM_ACCOUNT_EXECUTABLE_REVIEW
+cargo run -p doctor-cli -- explain SDK28_EVENT_SHAPE_REVIEW
+```
+
+The source library accepts an explicit SDK v28 target context, parses Rust with
+syn, groups findings by stable rule ID, and records exact file/line evidence.
+It checks removed export arguments on resolved direct SDK attribute imports and
+flags implemented `__check_auth` methods for manual review. Event-shape review
+is documentation-only, with no automatic finding or claim of a completed check.
+Unknown or missing explain IDs exit 2. `scan` continues to perform Cargo discovery;
+source checks are exposed through the library pending later pipeline integration.
+See [source rules and limitations](docs/source-rules.md).

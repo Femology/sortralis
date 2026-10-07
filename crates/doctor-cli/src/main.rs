@@ -1,6 +1,7 @@
 use clap::{Parser, Subcommand};
 use doctor_cargo::{analyze, CargoError};
 use doctor_runner::{detect_environment, EnvironmentError, ToolState};
+use doctor_source::registry;
 use std::{error::Error, fmt, path::PathBuf, process::ExitCode, time::Duration};
 
 #[derive(Debug, Parser)]
@@ -8,7 +9,7 @@ use std::{error::Error, fmt, path::PathBuf, process::ExitCode, time::Duration};
     name = "sortralis",
     version,
     about = "Pre-alpha CLI for analyzing Soroban contract upgrades",
-    after_help = "Phase 4: scan discovers Cargo workspaces and Soroban contract candidates. Full upgrade analysis is not implemented.\nPassing Sortralis is not a security audit and does not prove that an upgrade is safe to deploy."
+    after_help = "Phase 5: scan discovers Cargo packages; explain documents source migration rules. Full upgrade analysis is not implemented.\nPassing Sortralis is not a security audit and does not prove that an upgrade is safe to deploy."
 )]
 struct Cli {
     #[command(subcommand)]
@@ -28,8 +29,8 @@ enum DoctorCommand {
     Compare,
     /// Check upgrade readiness (not implemented yet)
     Check,
-    /// Explain a rule (not implemented yet)
-    Explain,
+    /// Explain a registered source migration rule
+    Explain { rule_id: String },
 }
 
 impl DoctorCommand {
@@ -38,7 +39,7 @@ impl DoctorCommand {
             Self::Scan { .. } => "scan",
             Self::Compare => "compare",
             Self::Check => "check",
-            Self::Explain => "explain",
+            Self::Explain { .. } => "explain",
         }
     }
 }
@@ -49,6 +50,7 @@ enum CliError {
     Environment(EnvironmentError),
     Cargo(CargoError),
     EnvironmentDetectionFailed,
+    UnknownRule(String),
 }
 
 impl fmt::Display for CliError {
@@ -56,6 +58,7 @@ impl fmt::Display for CliError {
         match self {
             Self::Environment(error) => write!(formatter, "{error}"),
             Self::Cargo(error) => write!(formatter, "{error}"),
+            Self::UnknownRule(id) => write!(formatter, "unknown rule ID: {id}"),
             Self::EnvironmentDetectionFailed => formatter
                 .write_str("environment detection incomplete; review the diagnostics above"),
             Self::NotImplemented(command) => write!(
@@ -148,6 +151,32 @@ fn run(cli: Cli) -> Result<(), CliError> {
             println!("Passing Sortralis is not a security audit and does not prove that an upgrade is safe to deploy.");
             Ok(())
         }
+        DoctorCommand::Explain { rule_id } => {
+            let registration = registry()
+                .iter()
+                .find(|rule| rule.documentation.id == rule_id)
+                .ok_or_else(|| CliError::UnknownRule(rule_id.clone()))?;
+            let doc = registration.documentation;
+            println!("{}: {}", doc.id, doc.title);
+            println!("{}", doc.description);
+            println!("Supported context: upgrading to or using Soroban SDK v28");
+            println!("Severity: {:?}", doc.severity);
+            println!(
+                "Detection: {}",
+                if registration.analyzer.is_some() {
+                    "Parser-based source check"
+                } else {
+                    "Manual only; no automatic detector"
+                }
+            );
+            println!("Why it matters: {}", doc.why_it_matters);
+            println!("Recommendation: {}", doc.recommendation);
+            println!("Limitations: {}", doc.limitations);
+            for reference in doc.references {
+                println!("Reference: {reference}");
+            }
+            Ok(())
+        }
         command => Err(CliError::NotImplemented(command)),
     }
 }
@@ -160,6 +189,7 @@ fn main() -> ExitCode {
             eprintln!("error: {error}");
             match error {
                 CliError::NotImplemented(_) => ExitCode::FAILURE,
+                CliError::UnknownRule(_) => ExitCode::from(2),
                 CliError::Cargo(CargoError::Path { .. } | CargoError::NoManifest { .. }) => {
                     ExitCode::from(2)
                 }
