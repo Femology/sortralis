@@ -121,8 +121,19 @@ fn bindings(items: &[syn::Item], sdk_names: &[String]) -> BTreeMap<String, Strin
             imports(&item.tree, &mut Vec::new(), &mut collected);
         }
     }
-    let is_sdk = |path: &[String]| path.first().is_some_and(|name| sdk_names.contains(name));
+    let mut namespaces = sdk_names.to_vec();
     let mut map = BTreeMap::new();
+    for item in items {
+        if let syn::Item::ExternCrate(item) = item {
+            if sdk_names.contains(&item.ident.to_string()) {
+                if let Some((_, alias)) = &item.rename {
+                    namespaces.push(alias.to_string());
+                    map.insert(alias.to_string(), "sdk".into());
+                }
+            }
+        }
+    }
+    let is_sdk = |path: &[String]| path.first().is_some_and(|name| namespaces.contains(name));
     let ambiguous_glob = collected
         .iter()
         .any(|(path, _)| path.last().is_some_and(|name| name == "*") && !is_sdk(path));

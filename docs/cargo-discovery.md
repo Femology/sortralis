@@ -52,8 +52,7 @@ available. `--no-deps` gives no resolved graph, so no resolved SDK version is cl
 `fixtures/healthy-v28` is a virtual workspace with two renamed SDK dependencies;
 `workspace-inherited` places its member outside a contracts directory and inherits
 SDK 28.0.0 from the workspace. `non-soroban` deliberately has a cdylib but no SDK.
-These are **metadata-only** fixtures with minimal library sources. The name
-healthy-v28 describes its manifest shape, not build, protocol, or upgrade health.
-Contract compilation and SDK transitive dependencies were not validated; tests
-need no SDK dependency downloads. No source migration rules or compatibility
-thresholds are implemented in Phase 4.
+Phase 4 discovery tests remain metadata-only and need no SDK downloads. Phase 6
+upgraded healthy-v28 to real contract sources and added separate opt-in build/test
+verification; see check-pipeline.md. workspace-inherited and non-soroban remain
+metadata-only. Discovery itself does not establish build, protocol, or upgrade health.

@@ -165,8 +165,10 @@ version = "0.1.0-alpha.1"
 dependencies = [
  "clap",
  "doctor-cargo",
+ "doctor-core",
  "doctor-runner",
  "doctor-source",
+ "semver",
 ]
 
 [[package]]

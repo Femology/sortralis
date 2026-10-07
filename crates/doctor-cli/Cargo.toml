@@ -16,6 +16,8 @@ path = "../../tests/cli/help.rs"
 
 [dependencies]
 clap.workspace = true
+doctor-core = { path = "../doctor-core" }
+semver.workspace = true
 doctor-source = { path = "../doctor-source" }
 doctor-cargo = { path = "../doctor-cargo" }
 doctor-runner = { path = "../doctor-runner" }

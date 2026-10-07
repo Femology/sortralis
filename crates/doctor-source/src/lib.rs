@@ -55,6 +55,20 @@ impl Default for SourceOptions {
         }
     }
 }
+impl SourceOptions {
+    pub fn validate(&self) -> Result<(), SourceError> {
+        for path in &self.exclude {
+            if path.as_os_str().is_empty()
+                || path
+                    .components()
+                    .any(|part| !matches!(part, Component::Normal(_)))
+            {
+                return Err(SourceError::InvalidExclusion(path.clone()));
+            }
+        }
+        Ok(())
+    }
+}
 #[derive(Debug)]
 pub enum SourceError {
     Io { path: PathBuf, source: io::Error },
@@ -167,15 +181,7 @@ pub fn analyze_directory(
     context: TargetContext,
     options: &SourceOptions,
 ) -> Result<Vec<Finding>, SourceError> {
-    for path in &options.exclude {
-        if path.as_os_str().is_empty()
-            || path
-                .components()
-                .any(|part| !matches!(part, Component::Normal(_)))
-        {
-            return Err(SourceError::InvalidExclusion(path.clone()));
-        }
-    }
+    options.validate()?;
     let root = fs::canonicalize(root).map_err(|source| SourceError::Io {
         path: root.to_path_buf(),
         source,

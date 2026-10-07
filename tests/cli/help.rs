@@ -37,7 +37,8 @@ fn version_reports_the_package_version() {
 
 #[test]
 fn unfinished_commands_fail_explicitly_without_success_output() {
-    for command in ["compare", "check"] {
+    {
+        let command = "compare";
         let output = Command::new(env!("CARGO_BIN_EXE_sortralis"))
             .arg(command)
             .output()
@@ -172,4 +173,32 @@ fn explain_unknown_or_missing_rule_returns_invalid_input() {
         assert_eq!(output.status.code(), Some(2));
         assert!(!output.stderr.is_empty());
     }
+}
+
+#[test]
+fn check_non_soroban_records_discovery_and_explicit_not_applicable_steps() {
+    let output = Command::new(env!("CARGO_BIN_EXE_sortralis"))
+        .arg("check")
+        .arg(fixture("non-soroban"))
+        .output()
+        .unwrap();
+    assert!(output.status.success(), "{:?}", output);
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    assert!(stdout.contains("Tests: not applicable"));
+    assert!(stdout.contains("Build: not applicable"));
+    assert!(stdout.contains("Command: cargo metadata"));
+    assert!(!stdout.contains("Command: cargo test"));
+    assert!(!stdout.contains("Command: stellar contract build"));
+}
+#[test]
+fn check_non_cargo_input_returns_invalid_input() {
+    let output = Command::new(env!("CARGO_BIN_EXE_sortralis"))
+        .arg("check")
+        .arg(fixture("non-soroban").join("src"))
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(2));
+    assert!(String::from_utf8(output.stderr)
+        .unwrap()
+        .contains("no Cargo.toml"));
 }

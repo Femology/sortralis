@@ -1,3 +1,6 @@
 [workspace]
 resolver = "2"
 members = ["alpha", "beta"]
+
+[profile.release]
+overflow-checks = true

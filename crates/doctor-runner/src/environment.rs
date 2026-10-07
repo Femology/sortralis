@@ -1,4 +1,4 @@
-use crate::{execute, CapturedCommand, CommandSpec, RunnerError};
+use crate::{CapturedCommand, CommandRunner, CommandSpec, RunnerError, SystemRunner};
 use doctor_core::{Category, CommandStatus, Evidence, Finding, RuleId, Severity};
 use semver::Version;
 use std::{io, path::Path, time::Duration};
@@ -141,18 +141,26 @@ pub fn detect_environment(
     directory: &Path,
     timeout: Duration,
 ) -> Result<Environment, EnvironmentError> {
+    detect_environment_with(directory, timeout, &SystemRunner)
+}
+pub fn detect_environment_with(
+    directory: &Path,
+    timeout: Duration,
+    runner: &impl CommandRunner,
+) -> Result<Environment, EnvironmentError> {
     let mut environment = Environment {
         tools: vec![],
         findings: vec![],
     };
     for program in ["rustc", "cargo", "stellar"] {
-        let command = execute(&CommandSpec {
-            program: program.into(),
-            args: vec!["--version".into()],
-            working_directory: directory.into(),
-            timeout,
-        })
-        .map_err(EnvironmentError::Runner)?;
+        let command = runner
+            .execute(&CommandSpec {
+                program: program.into(),
+                args: vec!["--version".into()],
+                working_directory: directory.into(),
+                timeout,
+            })
+            .map_err(EnvironmentError::Runner)?;
         let tool = inspect_tool(program, command);
         if !matches!(tool.state, ToolState::Detected { .. }) {
             environment

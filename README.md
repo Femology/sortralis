@@ -2,11 +2,12 @@
 
 A local-first CLI being built to analyze Soroban contract upgrades before deployment.
 
-**Status: pre-alpha, Phase 5 source rules (`0.1.0-alpha.1`).** `scan` discovers
+**Status: pre-alpha, Phase 6 check pipeline (`0.1.0-alpha.1`).** `scan` discovers
 Cargo workspaces and likely Soroban contract packages. `scan --environment` detects
-Rust, Cargo, and Stellar CLI versions. Full upgrade analysis, `compare`, and `check`
-remain unfinished; `explain <RULE_ID>` documents registered source rules. No contract
-builds, repository tests, or reports run automatically.
+Rust, Cargo, and Stellar CLI versions. `check` analyzes source and runs configured
+repository tests and Stellar builds, with captured statuses and diagnostics.
+`explain` documents registered source rules. Comparison, Wasm inspection, and
+report files remain unfinished.
 
 Passing Sortralis is not a security audit and does not prove that an upgrade is safe to deploy.
 
@@ -14,7 +15,8 @@ Passing Sortralis is not a security audit and does not prove that an upgrade is 
 
 Install Rust using rustup, with Cargo, rustfmt, and Clippy. This scaffold is verified
 with Rust/Cargo 1.96.0, edition 2021, and workspace resolver 2.
-Stellar CLI and the Soroban SDK are not required to build or test Sortralis.
+Stellar CLI and the Soroban SDK are not required for the default workspace checks.
+The opt-in real-tool integration tests require both.
 Environment detection reports Stellar CLI as not installed when it is absent.
 
 From the repository root:
@@ -58,7 +60,7 @@ it makes no upgrade compatibility claim. See [discovery details](docs/cargo-disc
 
 ## Workspace
 
-| Crate | Responsibility planned for later phases |
+| Crate | Responsibility |
 | --- | --- |
 | doctor-cli | Commands and terminal entry point (the only binary) |
 | doctor-core | Shared domain model and analysis coordination |
@@ -71,11 +73,13 @@ it makes no upgrade compatibility claim. See [discovery details](docs/cargo-disc
 The `doctor-core` library provides typed models, validated configuration, and pure
 policy evaluation. `doctor-runner` executes explicitly requested programs with
 separate arguments, timeout handling, concurrent output capture, and environment
-detection. `doctor-cargo` discovers packages from Cargo metadata. `doctor-source` provides a parser-based rule engine; the remaining two libraries
-establish boundaries only. See [runner behavior](docs/runner.md).
+detection. `doctor-cargo` discovers packages from Cargo metadata. `doctor-source`
+provides a parser-based rule engine; the remaining two libraries establish boundaries
+only. See [runner behavior](docs/runner.md).
 CLI integration tests live in `tests/cli/help.rs` and are explicitly registered
-in `crates/doctor-cli/Cargo.toml`. Metadata-only Cargo fixtures live in `fixtures/`;
-they are not contract build verification. The `scripts/` directory is reserved for later phases.
+in `crates/doctor-cli/Cargo.toml`. Discovery tests use offline fixture metadata;
+opt-in check tests compile copies of healthy-v28 and failing-tests. The `scripts/`
+directory is reserved for later phases.
 
 ## Quality checks
 
@@ -104,8 +108,7 @@ This project is licensed under the [MIT license](LICENSE).
 ## Core configuration and policy
 
 The optional configuration filename remains `upgrade-doctor.toml` as specified
-in the build plan. The core library can read and validate it; CLI loading will be
-wired in a later phase. A missing optional file uses these defaults:
+in the build plan. `check` reads and validates it before running analysis/tasks. A missing optional file uses these defaults:
 
 ```toml
 fail_on = ["BREAKING"]
@@ -137,8 +140,10 @@ These verdicts are data values, not evidence that an analysis has run.
 | 3 | Environment or tool execution failure |
 | 4 | Internal tool error |
 
-Failure outcomes take precedence over finding policy. The current unfinished CLI
-commands still return 1; the core policy is not yet connected to an analysis pipeline.
+Failure outcomes take precedence over finding policy. `check` applies this policy
+after aggregation; missing required tools, timeouts, and incomplete source analysis
+exit 3. Completed nonzero tests/builds create Breaking findings and default to exit 1.
+`compare` remains unfinished and returns 1.
 
 ## Source migration rules
 
@@ -154,5 +159,44 @@ It checks removed export arguments on resolved direct SDK attribute imports and
 flags implemented `__check_auth` methods for manual review. Event-shape review
 is documentation-only, with no automatic finding or claim of a completed check.
 Unknown or missing explain IDs exit 2. `scan` continues to perform Cargo discovery;
-source checks are exposed through the library pending later pipeline integration.
+`check` integrates source rules before running tests/builds.
 See [source rules and limitations](docs/source-rules.md).
+
+## Check the repository
+
+```bash
+cargo run -p doctor-cli -- check ./contract-project
+```
+
+`check` validates path/config, detects environment versions, discovers Cargo
+packages, analyzes source, runs `cargo test`, runs `stellar contract build`, then
+aggregates findings and applies exit policy. Commands run with separate arguments
+from the discovered workspace root. Tests/builds can be disabled independently
+in `upgrade-doctor.toml`. A member manifest is accepted; the discovered workspace
+root configuration wins and is validated before source/tasks execute.
+
+Failures retain raw stdout/stderr. Static findings remain visible after test/build
+failures, and a failed test does not prevent the build attempt. Missing/unrecognized
+required Stellar tooling blocks its build and exits 3. Disabled or inapplicable
+steps are displayed explicitly; no command success is inferred. Default timeouts
+are 5 seconds for versions, 30 for metadata, and 600 per test/build command.
+
+SDK v28's verified build minimum is Stellar CLI 25.2.0. The pipeline records this
+requirement and its source; meeting it does not establish actual build success.
+Broad SDK constraints that cannot establish v28 are flagged for manual review,
+with v28 source rules left unapplied. Event-shape review remains manual.
+
+Default CI tests use a command-runner double for versions/test/build outcomes
+and real offline Cargo metadata. Two opt-in tests in `crates/doctor-cli/tests/real_tools.rs`
+run real Cargo tests and real Stellar builds in copies of the SDK v28 fixtures:
+
+```bash
+cargo test -p doctor-cli --test real_tools -- --ignored --test-threads=1 --nocapture
+```
+
+These require Stellar CLI, Rust's Wasm target, and SDK dependencies. There is no
+silent skip when explicitly invoked. The failing-tests fixture intentionally
+returns Cargo exit 101; its integration test expects that failure and a subsequent
+successful build. `check` may create lockfiles/build artifacts and run Rust build
+scripts and tests through Cargo. It does not independently run repository shell
+scripts. No report directory is created yet. See [pipeline details](docs/check-pipeline.md).

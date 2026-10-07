@@ -2,6 +2,14 @@
 
 ## Unreleased — 0.1.0-alpha.1
 
+- Implement check configuration/environment/Cargo/source/test/build aggregation
+  and exit policy, preserving raw diagnostics and explicit command results.
+- Centralize the verified SDK v28 Stellar CLI build requirement.
+- Add an injectable runner for environment/discovery and orchestration tests.
+- Upgrade healthy-v28 to compilable contract sources, add failing-tests, and
+  provide separate opt-in real Cargo/Stellar integration tests.
+- Resolve SDK extern-crate aliases during source rule import recognition.
+
 - Add parser-based SDK v28 export-argument and custom-account review rules with
   grouped findings, stable IDs, and precise file/line evidence.
 - Register an explicit manual-only event-shape review and implement `explain`.
@@ -31,6 +39,5 @@
 - Add CLI integration tests and workspace lint configuration.
 - Add a GitHub Actions quality workflow and contributor/security documentation.
 
-Full upgrade analysis, expanded source rules, CLI configuration wiring, contract
-build/test orchestration, Wasm inspection, comparison, and report generation
-remain unimplemented.
+Wasm inspection, comparison, expanded source rules, and report generation remain
+unimplemented.

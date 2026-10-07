@@ -1,5 +1,7 @@
 use clap::{Parser, Subcommand};
 use doctor_cargo::{analyze, CargoError};
+use doctor_cli::check::{check, CheckError, CheckResult, StepStatus};
+use doctor_core::CommandStatus;
 use doctor_runner::{detect_environment, EnvironmentError, ToolState};
 use doctor_source::registry;
 use std::{error::Error, fmt, path::PathBuf, process::ExitCode, time::Duration};
@@ -9,7 +11,7 @@ use std::{error::Error, fmt, path::PathBuf, process::ExitCode, time::Duration};
     name = "sortralis",
     version,
     about = "Pre-alpha CLI for analyzing Soroban contract upgrades",
-    after_help = "Phase 5: scan discovers Cargo packages; explain documents source migration rules. Full upgrade analysis is not implemented.\nPassing Sortralis is not a security audit and does not prove that an upgrade is safe to deploy."
+    after_help = "Phase 6: check runs source checks, configured tests, and contract builds. Wasm comparison and report files are not implemented.\nPassing Sortralis is not a security audit and does not prove that an upgrade is safe to deploy."
 )]
 struct Cli {
     #[command(subcommand)]
@@ -27,8 +29,11 @@ enum DoctorCommand {
     },
     /// Compare contract artifacts (not implemented yet)
     Compare,
-    /// Check upgrade readiness (not implemented yet)
-    Check,
+    /// Run source checks, configured repository tests, and Stellar contract builds
+    Check {
+        #[arg(default_value = ".")]
+        path: PathBuf,
+    },
     /// Explain a registered source migration rule
     Explain { rule_id: String },
 }
@@ -38,7 +43,7 @@ impl DoctorCommand {
         match self {
             Self::Scan { .. } => "scan",
             Self::Compare => "compare",
-            Self::Check => "check",
+            Self::Check { .. } => "check",
             Self::Explain { .. } => "explain",
         }
     }
@@ -51,11 +56,15 @@ enum CliError {
     Cargo(CargoError),
     EnvironmentDetectionFailed,
     UnknownRule(String),
+    Check(CheckError),
+    Output(std::io::Error),
 }
 
 impl fmt::Display for CliError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::Check(error) => write!(formatter, "{error}"),
+            Self::Output(error) => write!(formatter, "cannot write check output: {error}"),
             Self::Environment(error) => write!(formatter, "{error}"),
             Self::Cargo(error) => write!(formatter, "{error}"),
             Self::UnknownRule(id) => write!(formatter, "unknown rule ID: {id}"),
@@ -73,6 +82,8 @@ impl fmt::Display for CliError {
 impl Error for CliError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match self {
+            Self::Check(error) => Some(error),
+            Self::Output(error) => Some(error),
             Self::Environment(error) => Some(error),
             Self::Cargo(error) => Some(error),
             _ => None,
@@ -80,7 +91,7 @@ impl Error for CliError {
     }
 }
 
-fn run(cli: Cli) -> Result<(), CliError> {
+fn run(cli: Cli) -> Result<ExitCode, CliError> {
     match cli.command {
         DoctorCommand::Scan {
             path,
@@ -113,7 +124,7 @@ fn run(cli: Cli) -> Result<(), CliError> {
             if failed {
                 Err(CliError::EnvironmentDetectionFailed)
             } else {
-                Ok(())
+                Ok(ExitCode::SUCCESS)
             }
         }
         DoctorCommand::Scan {
@@ -149,7 +160,12 @@ fn run(cli: Cli) -> Result<(), CliError> {
                 println!("No Soroban contract candidates found.");
             }
             println!("Passing Sortralis is not a security audit and does not prove that an upgrade is safe to deploy.");
-            Ok(())
+            Ok(ExitCode::SUCCESS)
+        }
+        DoctorCommand::Check { path } => {
+            let result = check(&path).map_err(CliError::Check)?;
+            print_check(&result)?;
+            Ok(ExitCode::from(result.exit_code.as_u8()))
         }
         DoctorCommand::Explain { rule_id } => {
             let registration = registry()
@@ -175,19 +191,109 @@ fn run(cli: Cli) -> Result<(), CliError> {
             for reference in doc.references {
                 println!("Reference: {reference}");
             }
-            Ok(())
+            Ok(ExitCode::SUCCESS)
         }
         command => Err(CliError::NotImplemented(command)),
     }
 }
 
+fn step_status(step: &StepStatus, result: &CheckResult) -> String {
+    match step {
+        StepStatus::Disabled => "disabled by configuration".into(),
+        StepStatus::NotApplicable => "not applicable: no Soroban packages".into(),
+        StepStatus::Blocked { reason } => format!("not run: {reason}"),
+        StepStatus::Executed { command_index } => {
+            match result.analysis.command_results.get(*command_index) {
+                Some(command) => match command.status {
+                    CommandStatus::Exited { code: 0 } => "passed (recorded exit 0)".into(),
+                    CommandStatus::Exited { code } => format!("failed (recorded exit {code})"),
+                    _ => format!("execution failed: {:?}", command.status),
+                },
+                None => "missing command evidence".into(),
+            }
+        }
+    }
+}
+fn print_check(result: &CheckResult) -> Result<(), CliError> {
+    use std::io::Write;
+    let mut stdout = std::io::stdout().lock();
+    let mut stderr = std::io::stderr().lock();
+    writeln!(
+        stdout,
+        "Workspace: {}",
+        result.analysis.repository_path.display()
+    )
+    .map_err(CliError::Output)?;
+    writeln!(stdout, "Tests: {}", step_status(&result.tests, result)).map_err(CliError::Output)?;
+    writeln!(stdout, "Build: {}", step_status(&result.build, result)).map_err(CliError::Output)?;
+    for finding in &result.analysis.findings {
+        writeln!(
+            stdout,
+            "{} [{:?}]: {}",
+            finding.id.as_str(),
+            finding.severity,
+            finding.summary
+        )
+        .map_err(CliError::Output)?;
+        for evidence in &finding.evidence {
+            if let Some(path) = &evidence.path {
+                writeln!(
+                    stdout,
+                    "  {}{}: {}",
+                    path.display(),
+                    evidence
+                        .line
+                        .map(|line| format!(":{line}"))
+                        .unwrap_or_default(),
+                    evidence.message
+                )
+                .map_err(CliError::Output)?;
+            }
+        }
+    }
+    for capture in &result.captures {
+        writeln!(
+            stdout,
+            "Command: {} {} ({:?})",
+            capture.record.program,
+            capture.record.args.join(" "),
+            capture.record.status
+        )
+        .map_err(CliError::Output)?;
+        if capture
+            .record
+            .args
+            .first()
+            .is_none_or(|arg| arg != "metadata")
+            || capture.record.status != (CommandStatus::Exited { code: 0 })
+        {
+            stdout
+                .write_all(&capture.stdout_bytes)
+                .map_err(CliError::Output)?;
+        }
+        stderr
+            .write_all(&capture.stderr_bytes)
+            .map_err(CliError::Output)?;
+    }
+    writeln!(
+        stdout,
+        "Verdict: {:?}; exit {}",
+        result.analysis.verdict,
+        result.exit_code.as_u8()
+    )
+    .map_err(CliError::Output)?;
+    writeln!(stdout,"Passing Sortralis is not a security audit and does not prove that an upgrade is safe to deploy.").map_err(CliError::Output)?;
+    Ok(())
+}
+
 fn main() -> ExitCode {
     let cli = Cli::parse();
     match run(cli) {
-        Ok(()) => ExitCode::SUCCESS,
+        Ok(code) => code,
         Err(error) => {
             eprintln!("error: {error}");
             match error {
+                CliError::Check(error) => ExitCode::from(error.exit_code().as_u8()),
                 CliError::NotImplemented(_) => ExitCode::FAILURE,
                 CliError::UnknownRule(_) => ExitCode::from(2),
                 CliError::Cargo(CargoError::Path { .. } | CargoError::NoManifest { .. }) => {

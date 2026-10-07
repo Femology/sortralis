@@ -1,7 +1,7 @@
 //! Read-only Cargo workspace discovery using format-version 1 metadata.
 use cargo_metadata::{DependencyKind, Metadata};
 use doctor_core::{CommandStatus, DetectedPackage, Evidence};
-use doctor_runner::{execute, CapturedCommand, CommandSpec, RunnerError};
+use doctor_runner::{CapturedCommand, CommandRunner, CommandSpec, RunnerError, SystemRunner};
 use std::{
     collections::BTreeSet,
     error::Error,
@@ -89,6 +89,13 @@ impl Error for CargoError {
 /// workspace members and inherited dependencies. No resolution, builds, or
 /// repository scripts are run; no resolved SDK version is claimed.
 pub fn analyze(repository: &Path, timeout: Duration) -> Result<CargoAnalysis, CargoError> {
+    analyze_with(repository, timeout, &SystemRunner)
+}
+pub fn analyze_with(
+    repository: &Path,
+    timeout: Duration,
+    runner: &impl CommandRunner,
+) -> Result<CargoAnalysis, CargoError> {
     let path = fs::canonicalize(repository).map_err(|source| CargoError::Path {
         path: repository.to_path_buf(),
         source,
@@ -105,21 +112,22 @@ pub fn analyze(repository: &Path, timeout: Duration) -> Result<CargoAnalysis, Ca
         .parent()
         .ok_or_else(|| CargoError::NoManifest { path: path.clone() })?
         .to_path_buf();
-    let command = execute(&CommandSpec {
-        program: "cargo".into(),
-        args: vec![
-            "metadata".into(),
-            "--format-version".into(),
-            "1".into(),
-            "--no-deps".into(),
-            "--offline".into(),
-            "--manifest-path".into(),
-            manifest.into_os_string(),
-        ],
-        working_directory: directory.to_path_buf(),
-        timeout,
-    })
-    .map_err(CargoError::Runner)?;
+    let command = runner
+        .execute(&CommandSpec {
+            program: "cargo".into(),
+            args: vec![
+                "metadata".into(),
+                "--format-version".into(),
+                "1".into(),
+                "--no-deps".into(),
+                "--offline".into(),
+                "--manifest-path".into(),
+                manifest.into_os_string(),
+            ],
+            working_directory: directory.to_path_buf(),
+            timeout,
+        })
+        .map_err(CargoError::Runner)?;
     if command.record.status != (CommandStatus::Exited { code: 0 }) {
         return Err(CargoError::MetadataFailed(Box::new(command)));
     }

@@ -1,8 +1,8 @@
 # Source rules (Phase 5)
 
 The engine is a library, with documentation exposed via `sortralis explain <RULE_ID>`.
-`scan` preserves Phase 4 Cargo discovery; the combined analysis/build/test pipeline
-is reserved for subsequent phases. No source writes or external processes occur.
+`scan` preserves Phase 4 Cargo discovery; Phase 6 `check` integrates the source
+engine before tests and builds. No source writes or external processes occur.
 
 ## Verified sources
 
@@ -46,7 +46,7 @@ SDK versions from source identifiers or broad semver ranges.
 No regex or text-search detector is used. Comments, strings, calls, unrelated
 attributes and opaque macro bodies are not interpreted as implementation code.
 Export detection recognizes explicit SDK qualification, module-level direct
-imports/aliases, and unambiguous SDK wildcard imports. Non-SDK explicit imports
+imports/aliases (including explicit SDK extern-crate aliases), and unambiguous SDK wildcard imports. Non-SDK explicit imports
 shadow wildcard names. Ambiguous wildcards and local macro definitions are treated
 conservatively. Inline module import scopes are separate. Cargo dependency aliases
 can be passed using `SourceOptions.sdk_crate_names` (Rust identifier spelling).

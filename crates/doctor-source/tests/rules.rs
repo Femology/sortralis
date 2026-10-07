@@ -153,3 +153,19 @@ fn invalid_rust_is_a_typed_error_with_path_and_line() {
     assert!(matches!(error, doctor_source::SourceError::Parse { .. }));
     assert!(error.to_string().contains("broken.rs:2"));
 }
+
+#[test]
+fn sdk_extern_crate_alias_is_resolved_without_treating_other_crates_as_sdk() {
+    let path = Path::new("lib.rs");
+    let positive = "extern crate soroban_sdk as sdk; use sdk::contracttype; #[contracttype(export = false)] struct S;";
+    assert_eq!(
+        analyze_text(path, positive, TargetContext::Sdk28)
+            .unwrap()
+            .len(),
+        1
+    );
+    let negative = "extern crate other as sdk; use sdk::contracttype; #[contracttype(export = false)] struct S;";
+    assert!(analyze_text(path, negative, TargetContext::Sdk28)
+        .unwrap()
+        .is_empty());
+}
