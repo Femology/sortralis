@@ -89,8 +89,10 @@ pub struct CommandResult {
 #[serde(tag = "kind", rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum CommandStatus {
     Exited { code: i32 },
+    Terminated { signal: Option<i32> },
     TimedOut,
     FailedToStart { message: String },
+    ExecutionFailed { message: String },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

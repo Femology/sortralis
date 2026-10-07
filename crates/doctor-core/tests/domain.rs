@@ -250,6 +250,10 @@ fn every_category_and_command_status_round_trips() {
         CommandStatus::Exited { code: 0 },
         CommandStatus::Exited { code: 7 },
         CommandStatus::TimedOut,
+        CommandStatus::Terminated { signal: Some(15) },
+        CommandStatus::ExecutionFailed {
+            message: "pipe read failure".into(),
+        },
         CommandStatus::FailedToStart {
             message: "missing binary".into(),
         },

@@ -52,3 +52,26 @@ fn unfinished_commands_fail_explicitly_without_success_output() {
         assert!(stderr.contains("not implemented yet"), "{stderr}");
     }
 }
+
+#[test]
+fn environment_mode_reports_missing_tools_with_structured_ids() {
+    let directory =
+        std::env::temp_dir().join(format!("sortralis-empty-path-{}", std::process::id()));
+    std::fs::create_dir(&directory).unwrap();
+    let output = Command::new(env!("CARGO_BIN_EXE_sortralis"))
+        .args(["scan", "--environment"])
+        .env("PATH", &directory)
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(3));
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    let stderr = String::from_utf8(output.stderr).unwrap();
+    assert!(stdout.contains("repository analysis is not implemented"));
+    for program in ["RUSTC", "CARGO", "STELLAR"] {
+        assert!(
+            stderr.contains(&format!("{program}_NOT_INSTALLED")),
+            "{stderr}"
+        );
+    }
+    std::fs::remove_dir(directory).unwrap();
+}

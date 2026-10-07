@@ -2,10 +2,10 @@
 
 A local-first CLI being built to analyze Soroban contract upgrades before deployment.
 
-**Status: pre-alpha, Phase 2 core model (`0.1.0-alpha.1`).** Only help and version
-output are implemented. `scan`, `compare`, `check`, and `explain` are registered,
-but each returns an explicit error and exit code 1. They do not analyze a repository,
-run its code, or generate reports yet.
+**Status: pre-alpha, Phase 3 runner (`0.1.0-alpha.1`).** Help and version work;
+`scan --environment` detects Rust, Cargo, and Stellar CLI versions. Full repository
+analysis, `compare`, `check`, and `explain` remain unfinished and return explicit
+errors. No contract builds, repository tests, or reports run automatically.
 
 Passing Sortralis is not a security audit and does not prove that an upgrade is safe to deploy.
 
@@ -13,7 +13,8 @@ Passing Sortralis is not a security audit and does not prove that an upgrade is 
 
 Install Rust using rustup, with Cargo, rustfmt, and Clippy. This scaffold is verified
 with Rust/Cargo 1.96.0, edition 2021, and workspace resolver 2.
-Stellar CLI and the Soroban SDK are not required for Phase 2.
+Stellar CLI and the Soroban SDK are not required to build or test Sortralis.
+Environment detection reports Stellar CLI as not installed when it is absent.
 
 From the repository root:
 
@@ -23,9 +24,17 @@ cargo run -p doctor-cli -- --help
 cargo run -p doctor-cli -- --version
 ```
 
-The binary is `target/debug/sortralis`. Its four analysis command
-names are reserved for later phases; argument and configuration handling for those
-commands is not implemented.
+The binary is `target/debug/sortralis`. To detect environment versions only:
+
+```bash
+cargo run -p doctor-cli -- scan --environment
+```
+
+An optional directory can be supplied: `scan ./contract-project --environment`.
+This prints tool versions and explicitly states that repository analysis is not
+implemented. It exits 0 when all versions are detected and 3 for missing tools,
+execution failures, or unrecognized version output. It applies no version threshold.
+Full `scan` without this flag still returns an explicit unfinished-command error.
 
 ## Workspace
 
@@ -39,7 +48,11 @@ commands is not implemented.
 | doctor-runner | External command execution |
 | doctor-report | Terminal, Markdown, and JSON reports |
 
-The `doctor-core` library provides typed models, validated configuration loading, and pure policy evaluation. The other five libraries establish boundaries only. No analyzer or command runner is implemented.
+The `doctor-core` library provides typed models, validated configuration, and pure
+policy evaluation. `doctor-runner` executes explicitly requested programs with
+separate arguments, timeout handling, concurrent output capture, and environment
+detection. The other four libraries establish boundaries only. No repository
+analyzer is implemented. See [runner behavior](docs/runner.md).
 CLI integration tests live in `tests/cli/help.rs` and are explicitly registered
 in `crates/doctor-cli/Cargo.toml`. Reserved `fixtures/`, `docs/`, and `scripts/`
 directories are retained for later phases.
@@ -57,7 +70,8 @@ The GitHub Actions `quality` job in [ci.yml](.github/workflows/ci.yml) runs thes
 commands on pushes and pull requests. A workflow file is not evidence of a
 successful hosted CI run.
 
-Direct dependencies are pinned: clap 4.6.7, serde 1.0.229, and toml 1.1.6.
+Direct dependencies are pinned: clap 4.6.7, serde 1.0.229, toml 1.1.6,
+semver 1.0.28, and nix 0.31.3 (Unix only).
 serde_json 1.0.151 is a test-only dependency. Cargo.lock pins the full graph.
 This project has been tested on Rust 1.96.0. See the
 [Phase 1 notes](docs/phase-1-notes.md) and [core model](docs/core-model.md).

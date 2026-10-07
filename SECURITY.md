@@ -8,9 +8,10 @@ development version.
 
 Passing Sortralis is not a security audit and does not prove that an upgrade is safe to deploy.
 
-The CLI prints help/version or explicit unavailable command errors. Phase 2 adds
-core data models and optional configuration-file reading with validation.
-Repository analysis, build/test execution, and Wasm parsing are not implemented.
+The CLI prints help/version and can detect environment tool versions. The core
+provides data models and validated configuration reading. The runner executes
+explicit requests directly with argument arrays, null stdin, and timeout handling.
+Repository analysis, contract build/test execution, and Wasm parsing are not implemented.
 No private keys or funded accounts are needed.
 
 ## Responsible disclosure
@@ -27,5 +28,7 @@ Include the affected version, reproduction steps, expected and observed behavior
 and a minimal sanitized example. A maintainer will confirm the report and discuss
 a fix and disclosure timing. There is no promised response deadline yet.
 
-Future phases that execute Cargo builds/tests will need to document the trust
-boundary: build scripts and tests can execute code from the target repository.
+Only trusted executable paths/PATH should be supplied to the runner. The current
+CLI requests only rustc, cargo, and stellar with --version. Timeout handling is
+not a security sandbox: see [runner limitations](docs/runner.md). Future Cargo
+builds/tests may execute code from target repositories and require trusted inputs.

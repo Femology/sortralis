@@ -16,6 +16,7 @@ path = "../../tests/cli/help.rs"
 
 [dependencies]
 clap.workspace = true
+doctor-runner = { path = "../doctor-runner" }
 
 [lints]
 workspace = true
