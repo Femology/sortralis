@@ -5,8 +5,9 @@ mod storage;
 use doctor_core::{Evidence, Finding, InvalidRuleId, RuleId};
 pub use interface::{inventory_interface_directory, inventory_interface_text};
 pub use rules::{
-    registry, CustomAccountRule, ExportArgumentRule, RuleDocumentation, RuleRegistration,
-    SourceRule,
+    registry, ContractTraitRule, CustomAccountRule, ExportArgumentRule, InternalSpecRule,
+    LegacyDeployRule, LegacyUpgradeRule, RuleDocumentation, RuleRegistration, SourceRule,
+    SparseEventRule, UpgradeAuthRule,
 };
 use std::{
     error::Error,

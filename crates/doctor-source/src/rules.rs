@@ -2,6 +2,7 @@ use crate::{evidence, ParsedSource, SourceError, TargetContext};
 use doctor_core::{Category, Evidence, Severity};
 use std::collections::BTreeMap;
 use syn::{
+    spanned::Spanned,
     visit::{self, Visit},
     Meta, Token, UseTree,
 };
@@ -61,11 +62,100 @@ const EVENT_DOC: RuleDocumentation = RuleDocumentation {
     limitations: "Manual only. Topic/data roles, format/opt-out arguments, type aliases and consumer expectations need semantic review. No synthetic finding is emitted.",
     references: &[MIGRATION],
 };
+const LEGACY_UPGRADE_DOC: RuleDocumentation = RuleDocumentation {
+    id: "P28-API-001",
+    title: "Legacy update_current_contract_wasm API detected",
+    description: "The contract calls update_current_contract_wasm, which is deprecated in SDK v28 in favor of Protocol 28 contract executable migration patterns.",
+    supported_context: TargetContext::Sdk28,
+    severity: Severity::Breaking,
+    category: Category::Source,
+    why_it_matters: "Protocol 28 updates the contract deployment and executable architecture (ContractExecutable). Calling update_current_contract_wasm directly requires migration.",
+    recommendation: "Migrate contract upgrade logic to the supported Protocol 28 ContractExecutable mechanisms.",
+    limitations: "AST method-call inspection on syntax nodes; does not evaluate runtime control flow or macros.",
+    references: &[MIGRATION],
+};
+const LEGACY_DEPLOY_DOC: RuleDocumentation = RuleDocumentation {
+    id: "P28-DEPLOY-001",
+    title: "Legacy Deployer API usage detected",
+    description: "The contract calls legacy Deployer deployment methods (e.g. with_current_contract, with_address, upload_contract_wasm).",
+    supported_context: TargetContext::Sdk28,
+    severity: Severity::Breaking,
+    category: Category::Source,
+    why_it_matters: "Protocol 28 replaces old deployment patterns with ContractExecutable and fleet upgrade options.",
+    recommendation: "Review Deployer calls against the SDK v28 ContractExecutable patterns.",
+    limitations: "AST method-call inspection on syntax nodes.",
+    references: &[MIGRATION],
+};
+const SPARSE_EVENT_DOC: RuleDocumentation = RuleDocumentation {
+    id: "P28-EVENT-001",
+    title: "Sparse event risk detected",
+    description: "Contract event or publish call contains unit/void () values that SDK v28 omits in map-format events.",
+    supported_context: TargetContext::Sdk28,
+    severity: Severity::ManualReview,
+    category: Category::Event,
+    why_it_matters: "SDK v28 omits void-valued data fields in map-format events, potentially breaking downstream decoders expecting complete fields.",
+    recommendation: "Review None/unit event fields or use contractevent(sparse = false) where field presence is strictly required.",
+    limitations: "AST inspection on struct definitions and event publish calls.",
+    references: &[MIGRATION],
+};
+const CONTRACTTRAIT_DOC: RuleDocumentation = RuleDocumentation {
+    id: "P28-MACRO-001",
+    title: "Invalid contracttrait macro usage",
+    description: "The #[contracttrait] attribute is applied to a non-trait item.",
+    supported_context: TargetContext::Sdk28,
+    severity: Severity::Breaking,
+    category: Category::Source,
+    why_it_matters: "Contract traits can only be declared on trait definitions; applying #[contracttrait] to structs, enums, or functions is invalid.",
+    recommendation: "Apply #[contracttrait] only to trait declarations.",
+    limitations: "AST attribute check on non-trait item syntax nodes.",
+    references: &[MIGRATION],
+};
+const INTERNAL_SPEC_DOC: RuleDocumentation = RuleDocumentation {
+    id: "P28-SPEC-001",
+    title: "Direct reference to internal spec symbol",
+    description: "Contract code references internal __SPEC_XDR_ or ScSpecEntry symbols directly.",
+    supported_context: TargetContext::Sdk28,
+    severity: Severity::Breaking,
+    category: Category::Source,
+    why_it_matters:
+        "Internal spec symbols are macro-generated and change layout/format between SDK versions.",
+    recommendation:
+        "Avoid referencing internal spec symbols directly; use standard SDK contract interfaces.",
+    limitations: "AST identifier inspection.",
+    references: &[MIGRATION],
+};
+const UPGRADE_AUTH_DOC: RuleDocumentation = RuleDocumentation {
+    id: "P28-AUTH-001",
+    title: "Upgrade function missing authorization check",
+    description: "Contract upgrade method executes without invoking require_auth().",
+    supported_context: TargetContext::Sdk28,
+    severity: Severity::ManualReview,
+    category: Category::Auth,
+    why_it_matters: "Upgrade functions without require_auth allow unauthorized callers to overwrite contract logic.",
+    recommendation: "Add an explicit require_auth() check (e.g. admin.require_auth()) before upgrading the contract.",
+    limitations: "AST check for require_auth / require_auth_for_args inside functions named upgrade, upgrade_contract, or calling update_current_contract_wasm.",
+    references: &[MIGRATION],
+};
+
 pub struct ExportArgumentRule;
 pub struct CustomAccountRule;
+pub struct LegacyUpgradeRule;
+pub struct LegacyDeployRule;
+pub struct SparseEventRule;
+pub struct ContractTraitRule;
+pub struct InternalSpecRule;
+pub struct UpgradeAuthRule;
+
 static EXPORT: ExportArgumentRule = ExportArgumentRule;
 static ACCOUNT: CustomAccountRule = CustomAccountRule;
-static REGISTRY: [RuleRegistration; 3] = [
+static LEGACY_UPGRADE: LegacyUpgradeRule = LegacyUpgradeRule;
+static LEGACY_DEPLOY: LegacyDeployRule = LegacyDeployRule;
+static SPARSE_EVENT: SparseEventRule = SparseEventRule;
+static CONTRACT_TRAIT: ContractTraitRule = ContractTraitRule;
+static INTERNAL_SPEC: InternalSpecRule = InternalSpecRule;
+static UPGRADE_AUTH: UpgradeAuthRule = UpgradeAuthRule;
+
+static REGISTRY: [RuleRegistration; 9] = [
     RuleRegistration {
         documentation: &EXPORT_DOC,
         analyzer: Some(&EXPORT),
@@ -77,6 +167,30 @@ static REGISTRY: [RuleRegistration; 3] = [
     RuleRegistration {
         documentation: &EVENT_DOC,
         analyzer: None,
+    },
+    RuleRegistration {
+        documentation: &LEGACY_UPGRADE_DOC,
+        analyzer: Some(&LEGACY_UPGRADE),
+    },
+    RuleRegistration {
+        documentation: &LEGACY_DEPLOY_DOC,
+        analyzer: Some(&LEGACY_DEPLOY),
+    },
+    RuleRegistration {
+        documentation: &SPARSE_EVENT_DOC,
+        analyzer: Some(&SPARSE_EVENT),
+    },
+    RuleRegistration {
+        documentation: &CONTRACTTRAIT_DOC,
+        analyzer: Some(&CONTRACT_TRAIT),
+    },
+    RuleRegistration {
+        documentation: &INTERNAL_SPEC_DOC,
+        analyzer: Some(&INTERNAL_SPEC),
+    },
+    RuleRegistration {
+        documentation: &UPGRADE_AUTH_DOC,
+        analyzer: Some(&UPGRADE_AUTH),
     },
 ];
 pub fn registry() -> &'static [RuleRegistration] {
@@ -306,5 +420,378 @@ impl SourceRule for CustomAccountRule {
         };
         visit::visit_file(&mut visitor, &source.syntax);
         visitor.locations.into_iter().map(|span| evidence(source,span,"Implemented __check_auth method; review executable/deployment authorization, without assuming a defect".into())).collect()
+    }
+}
+
+struct LegacyUpgradeVisitor {
+    locations: Vec<proc_macro2::Span>,
+}
+impl<'ast> Visit<'ast> for LegacyUpgradeVisitor {
+    fn visit_expr_method_call(&mut self, call: &'ast syn::ExprMethodCall) {
+        if call.method == "update_current_contract_wasm" {
+            self.locations.push(call.method.span());
+        }
+        visit::visit_expr_method_call(self, call);
+    }
+}
+impl SourceRule for LegacyUpgradeRule {
+    fn documentation(&self) -> &'static RuleDocumentation {
+        &LEGACY_UPGRADE_DOC
+    }
+    fn analyze(
+        &self,
+        source: &ParsedSource,
+        context: TargetContext,
+    ) -> Result<Vec<Evidence>, SourceError> {
+        if context != self.documentation().supported_context {
+            return Ok(Vec::new());
+        }
+        let mut visitor = LegacyUpgradeVisitor {
+            locations: Vec::new(),
+        };
+        visit::visit_file(&mut visitor, &source.syntax);
+        visitor
+            .locations
+            .into_iter()
+            .map(|span| {
+                evidence(
+                    source,
+                    span,
+                    "Legacy update_current_contract_wasm call detected; upgrade mechanism changed in SDK v28".into(),
+                )
+            })
+            .collect()
+    }
+}
+
+struct LegacyDeployVisitor {
+    locations: Vec<proc_macro2::Span>,
+}
+impl<'ast> Visit<'ast> for LegacyDeployVisitor {
+    fn visit_expr_method_call(&mut self, call: &'ast syn::ExprMethodCall) {
+        if call.method == "with_current_contract"
+            || call.method == "upload_contract_wasm"
+            || call.method == "with_address"
+        {
+            self.locations.push(call.method.span());
+        }
+        visit::visit_expr_method_call(self, call);
+    }
+}
+impl SourceRule for LegacyDeployRule {
+    fn documentation(&self) -> &'static RuleDocumentation {
+        &LEGACY_DEPLOY_DOC
+    }
+    fn analyze(
+        &self,
+        source: &ParsedSource,
+        context: TargetContext,
+    ) -> Result<Vec<Evidence>, SourceError> {
+        if context != self.documentation().supported_context {
+            return Ok(Vec::new());
+        }
+        let mut visitor = LegacyDeployVisitor {
+            locations: Vec::new(),
+        };
+        visit::visit_file(&mut visitor, &source.syntax);
+        visitor
+            .locations
+            .into_iter()
+            .map(|span| {
+                evidence(
+                    source,
+                    span,
+                    "Legacy Deployer deployment method detected; Protocol 28 introduces ContractExecutable patterns".into(),
+                )
+            })
+            .collect()
+    }
+}
+
+fn is_or_contains_unit(expr: &syn::Expr) -> bool {
+    match expr {
+        syn::Expr::Tuple(t) => t.elems.is_empty() || t.elems.iter().any(is_or_contains_unit),
+        _ => false,
+    }
+}
+
+struct SparseEventVisitor {
+    locations: Vec<proc_macro2::Span>,
+}
+impl<'ast> Visit<'ast> for SparseEventVisitor {
+    fn visit_item_struct(&mut self, item: &'ast syn::ItemStruct) {
+        let is_event = item.attrs.iter().any(|attr| {
+            attr.path().is_ident("contractevent")
+                || attr
+                    .path()
+                    .segments
+                    .iter()
+                    .any(|seg| seg.ident == "contractevent")
+        });
+        let has_sparse_false = item.attrs.iter().any(|attr| {
+            if let syn::Meta::List(list) = &attr.meta {
+                let s = list.tokens.to_string();
+                s.contains("sparse = false") || s.contains("sparse=false")
+            } else {
+                false
+            }
+        });
+        if is_event && !has_sparse_false {
+            for field in &item.fields {
+                if let syn::Type::Tuple(tuple) = &field.ty {
+                    if tuple.elems.is_empty() {
+                        self.locations.push(field.span());
+                    }
+                }
+            }
+        }
+        visit::visit_item_struct(self, item);
+    }
+
+    fn visit_expr_method_call(&mut self, call: &'ast syn::ExprMethodCall) {
+        if call.method == "publish" {
+            for arg in &call.args {
+                if is_or_contains_unit(arg) {
+                    self.locations.push(call.method.span());
+                }
+            }
+        }
+        visit::visit_expr_method_call(self, call);
+    }
+}
+impl SourceRule for SparseEventRule {
+    fn documentation(&self) -> &'static RuleDocumentation {
+        &SPARSE_EVENT_DOC
+    }
+    fn analyze(
+        &self,
+        source: &ParsedSource,
+        context: TargetContext,
+    ) -> Result<Vec<Evidence>, SourceError> {
+        if context != self.documentation().supported_context {
+            return Ok(Vec::new());
+        }
+        let mut visitor = SparseEventVisitor {
+            locations: Vec::new(),
+        };
+        visit::visit_file(&mut visitor, &source.syntax);
+        visitor
+            .locations
+            .into_iter()
+            .map(|span| {
+                evidence(
+                    source,
+                    span,
+                    "Event definition or publish call contains unit/void () values subject to v28 sparse map omission".into(),
+                )
+            })
+            .collect()
+    }
+}
+
+struct ContractTraitVisitor {
+    locations: Vec<proc_macro2::Span>,
+}
+impl<'ast> Visit<'ast> for ContractTraitVisitor {
+    fn visit_item_struct(&mut self, item: &'ast syn::ItemStruct) {
+        for attr in &item.attrs {
+            if attr.path().is_ident("contracttrait")
+                || attr
+                    .path()
+                    .segments
+                    .iter()
+                    .any(|s| s.ident == "contracttrait")
+            {
+                self.locations.push(attr.span());
+            }
+        }
+        visit::visit_item_struct(self, item);
+    }
+    fn visit_item_enum(&mut self, item: &'ast syn::ItemEnum) {
+        for attr in &item.attrs {
+            if attr.path().is_ident("contracttrait")
+                || attr
+                    .path()
+                    .segments
+                    .iter()
+                    .any(|s| s.ident == "contracttrait")
+            {
+                self.locations.push(attr.span());
+            }
+        }
+        visit::visit_item_enum(self, item);
+    }
+    fn visit_item_fn(&mut self, item: &'ast syn::ItemFn) {
+        for attr in &item.attrs {
+            if attr.path().is_ident("contracttrait")
+                || attr
+                    .path()
+                    .segments
+                    .iter()
+                    .any(|s| s.ident == "contracttrait")
+            {
+                self.locations.push(attr.span());
+            }
+        }
+        visit::visit_item_fn(self, item);
+    }
+}
+impl SourceRule for ContractTraitRule {
+    fn documentation(&self) -> &'static RuleDocumentation {
+        &CONTRACTTRAIT_DOC
+    }
+    fn analyze(
+        &self,
+        source: &ParsedSource,
+        context: TargetContext,
+    ) -> Result<Vec<Evidence>, SourceError> {
+        if context != self.documentation().supported_context {
+            return Ok(Vec::new());
+        }
+        let mut visitor = ContractTraitVisitor {
+            locations: Vec::new(),
+        };
+        visit::visit_file(&mut visitor, &source.syntax);
+        visitor
+            .locations
+            .into_iter()
+            .map(|span| {
+                evidence(
+                    source,
+                    span,
+                    "#[contracttrait] applied to non-trait item; contract traits must be declared on trait definitions".into(),
+                )
+            })
+            .collect()
+    }
+}
+
+struct InternalSpecVisitor {
+    locations: Vec<proc_macro2::Span>,
+}
+impl<'ast> Visit<'ast> for InternalSpecVisitor {
+    fn visit_ident(&mut self, ident: &'ast syn::Ident) {
+        let name = ident.to_string();
+        if name.starts_with("__SPEC_XDR_")
+            || name.starts_with("__spec_xdr_")
+            || name == "ScSpecEntry"
+        {
+            self.locations.push(ident.span());
+        }
+    }
+}
+impl SourceRule for InternalSpecRule {
+    fn documentation(&self) -> &'static RuleDocumentation {
+        &INTERNAL_SPEC_DOC
+    }
+    fn analyze(
+        &self,
+        source: &ParsedSource,
+        context: TargetContext,
+    ) -> Result<Vec<Evidence>, SourceError> {
+        if context != self.documentation().supported_context {
+            return Ok(Vec::new());
+        }
+        let mut visitor = InternalSpecVisitor {
+            locations: Vec::new(),
+        };
+        visit::visit_file(&mut visitor, &source.syntax);
+        visitor
+            .locations
+            .into_iter()
+            .map(|span| {
+                evidence(
+                    source,
+                    span,
+                    "Direct reference to internal spec symbol detected; spec generation is managed by SDK macros".into(),
+                )
+            })
+            .collect()
+    }
+}
+
+fn contains_require_auth(block: &syn::Block) -> bool {
+    struct AuthFinder {
+        found: bool,
+    }
+    impl<'ast> Visit<'ast> for AuthFinder {
+        fn visit_expr_method_call(&mut self, call: &'ast syn::ExprMethodCall) {
+            if call.method == "require_auth" || call.method == "require_auth_for_args" {
+                self.found = true;
+            }
+            visit::visit_expr_method_call(self, call);
+        }
+    }
+    let mut finder = AuthFinder { found: false };
+    finder.visit_block(block);
+    finder.found
+}
+
+fn is_upgrade_fn(name: &str, block: &syn::Block) -> bool {
+    if name == "upgrade" || name == "upgrade_contract" || name == "update_contract" {
+        return true;
+    }
+    struct UpgradeCallFinder {
+        found: bool,
+    }
+    impl<'ast> Visit<'ast> for UpgradeCallFinder {
+        fn visit_expr_method_call(&mut self, call: &'ast syn::ExprMethodCall) {
+            if call.method == "update_current_contract_wasm" {
+                self.found = true;
+            }
+            visit::visit_expr_method_call(self, call);
+        }
+    }
+    let mut finder = UpgradeCallFinder { found: false };
+    finder.visit_block(block);
+    finder.found
+}
+
+struct UpgradeAuthVisitor {
+    locations: Vec<proc_macro2::Span>,
+}
+impl<'ast> Visit<'ast> for UpgradeAuthVisitor {
+    fn visit_impl_item_fn(&mut self, method: &'ast syn::ImplItemFn) {
+        let name = method.sig.ident.to_string();
+        if is_upgrade_fn(&name, &method.block) && !contains_require_auth(&method.block) {
+            self.locations.push(method.sig.ident.span());
+        }
+        visit::visit_impl_item_fn(self, method);
+    }
+    fn visit_item_fn(&mut self, func: &'ast syn::ItemFn) {
+        let name = func.sig.ident.to_string();
+        if is_upgrade_fn(&name, &func.block) && !contains_require_auth(&func.block) {
+            self.locations.push(func.sig.ident.span());
+        }
+        visit::visit_item_fn(self, func);
+    }
+}
+impl SourceRule for UpgradeAuthRule {
+    fn documentation(&self) -> &'static RuleDocumentation {
+        &UPGRADE_AUTH_DOC
+    }
+    fn analyze(
+        &self,
+        source: &ParsedSource,
+        context: TargetContext,
+    ) -> Result<Vec<Evidence>, SourceError> {
+        if context != self.documentation().supported_context {
+            return Ok(Vec::new());
+        }
+        let mut visitor = UpgradeAuthVisitor {
+            locations: Vec::new(),
+        };
+        visit::visit_file(&mut visitor, &source.syntax);
+        visitor
+            .locations
+            .into_iter()
+            .map(|span| {
+                evidence(
+                    source,
+                    span,
+                    "Upgrade function missing require_auth() check; unauthenticated contract upgrade risk".into(),
+                )
+            })
+            .collect()
     }
 }

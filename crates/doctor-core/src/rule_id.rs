@@ -10,7 +10,7 @@ impl RuleId {
     pub fn new(value: impl Into<String>) -> Result<Self, InvalidRuleId> {
         let value = value.into();
         let starts_with_letter = value.bytes().next().is_some_and(|b| b.is_ascii_uppercase());
-        let valid_segments = value.split('_').all(|segment| {
+        let valid_segments = value.split(['_', '-']).all(|segment| {
             !segment.is_empty()
                 && segment
                     .bytes()

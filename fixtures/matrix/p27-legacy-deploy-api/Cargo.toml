@@ -1,0 +1,12 @@
+[package]
+name = "p27-legacy-deploy-api"
+version = "0.1.0"
+edition = "2021"
+
+[workspace]
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+soroban-sdk = "=28.0.0"
