@@ -76,14 +76,14 @@ const LEGACY_UPGRADE_DOC: RuleDocumentation = RuleDocumentation {
 };
 const LEGACY_DEPLOY_DOC: RuleDocumentation = RuleDocumentation {
     id: "P28-DEPLOY-001",
-    title: "Legacy Deployer API usage detected",
-    description: "The contract calls legacy Deployer deployment methods (e.g. with_current_contract, with_address, upload_contract_wasm).",
+    title: "Deprecated deploy_v2 API detected",
+    description: "The contract calls DeployerWithAddress::deploy_v2, which is deprecated in SDK v28 in favor of deploy_contract with ContractExecutable.",
     supported_context: TargetContext::Sdk28,
     severity: Severity::Breaking,
     category: Category::Source,
-    why_it_matters: "Protocol 28 replaces old deployment patterns with ContractExecutable and fleet upgrade options.",
-    recommendation: "Review Deployer calls against the SDK v28 ContractExecutable patterns.",
-    limitations: "AST method-call inspection on syntax nodes.",
+    why_it_matters: "SDK v28 deprecates deploy_v2 and replaces it with deploy_contract, which accepts ContractExecutable.",
+    recommendation: "Replace deploy_v2 with deploy_contract and wrap the Wasm hash in ContractExecutable::Wasm.",
+    limitations: "Syntax-only AST method-call inspection. It intentionally does not flag with_current_contract, with_address, or upload_contract_wasm because those remain supported in SDK v28. It also does not flag a generic method named deploy because type resolution is unavailable and that would create broad false positives.",
     references: &[MIGRATION],
 };
 const SPARSE_EVENT_DOC: RuleDocumentation = RuleDocumentation {
@@ -126,14 +126,14 @@ const INTERNAL_SPEC_DOC: RuleDocumentation = RuleDocumentation {
 };
 const UPGRADE_AUTH_DOC: RuleDocumentation = RuleDocumentation {
     id: "P28-AUTH-001",
-    title: "Upgrade function missing authorization check",
-    description: "Contract upgrade method executes without invoking require_auth().",
+    title: "Upgrade authorization requires review",
+    description: "No direct or verified macro-based authorization signal is visible on an upgrade function.",
     supported_context: TargetContext::Sdk28,
     severity: Severity::ManualReview,
     category: Category::Auth,
-    why_it_matters: "Upgrade functions without require_auth allow unauthorized callers to overwrite contract logic.",
-    recommendation: "Add an explicit require_auth() check (e.g. admin.require_auth()) before upgrading the contract.",
-    limitations: "AST check for require_auth / require_auth_for_args inside functions named upgrade, upgrade_contract, or calling update_current_contract_wasm.",
+    why_it_matters: "Upgrade entry points must be authorization-protected, but syntax-only analysis cannot always prove authorization delegated through helpers, traits, or macros.",
+    recommendation: "Verify that the upgrade entry point or its trusted caller enforces authorization before changing contract executable code.",
+    limitations: "AST check for require_auth / require_auth_for_args and explicitly resolved stellar_macros authorization attributes (only_role, only_owner, only_admin, only_any_role). It does not expand arbitrary macros or prove cross-function/caller authorization, so unresolved cases remain manual review.",
     references: &[MIGRATION],
 };
 
@@ -469,10 +469,7 @@ struct LegacyDeployVisitor {
 }
 impl<'ast> Visit<'ast> for LegacyDeployVisitor {
     fn visit_expr_method_call(&mut self, call: &'ast syn::ExprMethodCall) {
-        if call.method == "with_current_contract"
-            || call.method == "upload_contract_wasm"
-            || call.method == "with_address"
-        {
+        if call.method == "deploy_v2" {
             self.locations.push(call.method.span());
         }
         visit::visit_expr_method_call(self, call);
@@ -501,7 +498,7 @@ impl SourceRule for LegacyDeployRule {
                 evidence(
                     source,
                     span,
-                    "Legacy Deployer deployment method detected; Protocol 28 introduces ContractExecutable patterns".into(),
+                    "Deprecated deploy_v2 call detected; SDK v28 replaces it with deploy_contract(ContractExecutable, constructor_args)".into(),
                 )
             })
             .collect()
@@ -747,23 +744,70 @@ fn is_upgrade_fn(name: &str, block: &syn::Block) -> bool {
     finder.found
 }
 
+fn verified_auth_attribute(
+    attrs: &[syn::Attribute],
+    names: &BTreeMap<String, String>,
+) -> bool {
+    const AUTH_MACROS: [&str; 4] = ["only_role", "only_owner", "only_admin", "only_any_role"];
+
+    attrs.iter().any(|attr| {
+        let segments: Vec<_> = attr
+            .path()
+            .segments
+            .iter()
+            .map(|segment| segment.ident.to_string())
+            .collect();
+
+        match segments.as_slice() {
+            [name] => names
+                .get(name)
+                .is_some_and(|resolved| AUTH_MACROS.contains(&resolved.as_str())),
+            [namespace, name] => {
+                AUTH_MACROS.contains(&name.as_str())
+                    && (namespace == "stellar_macros"
+                        || names
+                            .get(namespace)
+                            .is_some_and(|resolved| resolved == "sdk"))
+            }
+            _ => false,
+        }
+    })
+}
+
 struct UpgradeAuthVisitor {
+    names: BTreeMap<String, String>,
     locations: Vec<proc_macro2::Span>,
 }
 impl<'ast> Visit<'ast> for UpgradeAuthVisitor {
     fn visit_impl_item_fn(&mut self, method: &'ast syn::ImplItemFn) {
         let name = method.sig.ident.to_string();
-        if is_upgrade_fn(&name, &method.block) && !contains_require_auth(&method.block) {
+        if is_upgrade_fn(&name, &method.block)
+            && !contains_require_auth(&method.block)
+            && !verified_auth_attribute(&method.attrs, &self.names)
+        {
             self.locations.push(method.sig.ident.span());
         }
         visit::visit_impl_item_fn(self, method);
     }
     fn visit_item_fn(&mut self, func: &'ast syn::ItemFn) {
         let name = func.sig.ident.to_string();
-        if is_upgrade_fn(&name, &func.block) && !contains_require_auth(&func.block) {
+        if is_upgrade_fn(&name, &func.block)
+            && !contains_require_auth(&func.block)
+            && !verified_auth_attribute(&func.attrs, &self.names)
+        {
             self.locations.push(func.sig.ident.span());
         }
         visit::visit_item_fn(self, func);
+    }
+    fn visit_item_mod(&mut self, item: &'ast syn::ItemMod) {
+        if let Some((_, items)) = &item.content {
+            let macro_crates = [String::from("stellar_macros")];
+            let parent = std::mem::replace(&mut self.names, bindings(items, &macro_crates));
+            for item in items {
+                self.visit_item(item);
+            }
+            self.names = parent;
+        }
     }
 }
 impl SourceRule for UpgradeAuthRule {
@@ -778,7 +822,9 @@ impl SourceRule for UpgradeAuthRule {
         if context != self.documentation().supported_context {
             return Ok(Vec::new());
         }
+        let macro_crates = [String::from("stellar_macros")];
         let mut visitor = UpgradeAuthVisitor {
+            names: bindings(&source.syntax.items, &macro_crates),
             locations: Vec::new(),
         };
         visit::visit_file(&mut visitor, &source.syntax);
@@ -789,7 +835,7 @@ impl SourceRule for UpgradeAuthRule {
                 evidence(
                     source,
                     span,
-                    "Upgrade function missing require_auth() check; unauthenticated contract upgrade risk".into(),
+                    "No direct or verified macro-based authorization signal found on this upgrade function; review caller, trait, helper, or macro authorization".into(),
                 )
             })
             .collect()
