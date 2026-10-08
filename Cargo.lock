@@ -202,6 +202,7 @@ version = "0.1.0-alpha.1"
 dependencies = [
  "doctor-core",
  "doctor-wasm",
+ "serde",
  "serde_json",
 ]
 

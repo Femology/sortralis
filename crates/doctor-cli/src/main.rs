@@ -18,6 +18,25 @@ struct Cli {
     command: DoctorCommand,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
+enum CliFormat {
+    Terminal,
+    Json,
+    Sarif,
+    Html,
+}
+
+impl From<CliFormat> for doctor_core::report::ReportFormat {
+    fn from(fmt: CliFormat) -> Self {
+        match fmt {
+            CliFormat::Terminal => Self::Terminal,
+            CliFormat::Json => Self::Json,
+            CliFormat::Sarif => Self::Sarif,
+            CliFormat::Html => Self::Html,
+        }
+    }
+}
+
 #[derive(Debug, Subcommand)]
 enum DoctorCommand {
     /// Discover source packages, or explicitly execute ordered project verification
@@ -30,6 +49,12 @@ enum DoctorCommand {
         json: bool,
         #[arg(long, requires = "verify")]
         skip_clippy: bool,
+        /// Report format: terminal, json, sarif, or html
+        #[arg(long)]
+        format: Option<CliFormat>,
+        /// Destination output file path
+        #[arg(long)]
+        output: Option<PathBuf>,
     },
     /// Discover Cargo packages and Soroban candidates; --environment detects tool versions only
     Scan {
@@ -84,6 +109,12 @@ enum DoctorCommand {
     Check {
         #[arg(default_value = ".")]
         path: PathBuf,
+        /// Report format: terminal, json, sarif, or html
+        #[arg(long, default_value = "terminal")]
+        format: CliFormat,
+        /// Destination output file path (defaults to stdout for terminal/json/sarif, report.html for html)
+        #[arg(long)]
+        output: Option<PathBuf>,
     },
     /// Explain a registered source migration rule
     Explain { rule_id: String },
@@ -160,23 +191,28 @@ fn run(cli: Cli) -> Result<ExitCode, CliError> {
             verify: true,
             json,
             skip_clippy,
+            format,
+            output,
         } => {
             let options = doctor_cli::verify::VerificationOptions {
                 skip_clippy,
                 ..Default::default()
             };
-            let report =
+            let rep =
                 doctor_cli::verify::verify(&path, &options).map_err(CliError::Verification)?;
-            let mut stdout = std::io::stdout().lock();
-            if json {
+            if let Some(fmt) = format {
+                let unified = report_from_verification(&rep);
+                write_formatted_report(&unified, fmt.into(), output.as_deref())?;
+            } else if json {
                 use std::io::Write;
-                serde_json::to_writer_pretty(&mut stdout, &report).map_err(CliError::Json)?;
+                let mut stdout = std::io::stdout().lock();
+                serde_json::to_writer_pretty(&mut stdout, &rep).map_err(CliError::Json)?;
                 writeln!(stdout).map_err(CliError::Output)?;
             } else {
-                doctor_report::write_verification(&mut stdout, &report)
-                    .map_err(CliError::Output)?;
+                let mut stdout = std::io::stdout().lock();
+                doctor_report::write_verification(&mut stdout, &rep).map_err(CliError::Output)?;
             }
-            Ok(ExitCode::from(report.exit_code.as_u8()))
+            Ok(ExitCode::from(rep.exit_code.as_u8()))
         }
         DoctorCommand::Wasm { path, json } => {
             let cwd = std::env::current_dir().map_err(CliError::Output)?;
@@ -325,9 +361,14 @@ fn run(cli: Cli) -> Result<ExitCode, CliError> {
             println!("Passing Sortralis is not a security audit and does not prove that an upgrade is safe to deploy.");
             Ok(ExitCode::SUCCESS)
         }
-        DoctorCommand::Check { path } => {
+        DoctorCommand::Check {
+            path,
+            format,
+            output,
+        } => {
             let result = check(&path).map_err(CliError::Check)?;
-            print_check(&result)?;
+            let report = report_from_check_result(&path, &result);
+            write_formatted_report(&report, format.into(), output.as_deref())?;
             Ok(ExitCode::from(result.exit_code.as_u8()))
         }
         DoctorCommand::Explain { rule_id } => {
@@ -376,75 +417,134 @@ fn step_status(step: &StepStatus, result: &CheckResult) -> String {
         }
     }
 }
-fn print_check(result: &CheckResult) -> Result<(), CliError> {
-    use std::io::Write;
-    let mut stdout = std::io::stdout().lock();
-    let mut stderr = std::io::stderr().lock();
-    writeln!(
-        stdout,
-        "Workspace: {}",
-        result.analysis.repository_path.display()
-    )
-    .map_err(CliError::Output)?;
-    writeln!(stdout, "Tests: {}", step_status(&result.tests, result)).map_err(CliError::Output)?;
-    writeln!(stdout, "Build: {}", step_status(&result.build, result)).map_err(CliError::Output)?;
-    for finding in &result.analysis.findings {
-        writeln!(
-            stdout,
-            "{} [{:?}]: {}",
-            finding.id.as_str(),
-            finding.severity,
-            finding.summary
-        )
-        .map_err(CliError::Output)?;
-        for evidence in &finding.evidence {
-            if let Some(path) = &evidence.path {
-                writeln!(
-                    stdout,
-                    "  {}{}: {}",
-                    path.display(),
-                    evidence
-                        .line
-                        .map(|line| format!(":{line}"))
-                        .unwrap_or_default(),
-                    evidence.message
-                )
+fn report_from_check_result(
+    root: &std::path::Path,
+    result: &CheckResult,
+) -> doctor_core::report::Report {
+    let env = detect_environment(root, Duration::from_secs(5)).ok();
+    let mut tools = Vec::new();
+    if let Some(env) = env {
+        for tool in env.tools {
+            let version = match &tool.state {
+                ToolState::Detected { version } => Some(version.to_string()),
+                _ => None,
+            };
+            tools.push(doctor_core::report::ToolInfo {
+                name: tool.program,
+                version,
+                status: format!("{:?}", tool.state),
+            });
+        }
+    }
+
+    let steps = vec![
+        doctor_core::report::ReportStep {
+            name: "Tests".into(),
+            status: step_status(&result.tests, result),
+            description: None,
+            exit_code: None,
+            duration_millis: None,
+            command: None,
+        },
+        doctor_core::report::ReportStep {
+            name: "Build".into(),
+            status: step_status(&result.build, result),
+            description: None,
+            exit_code: None,
+            duration_millis: None,
+            command: None,
+        },
+    ];
+
+    doctor_core::report::Report::new(doctor_core::report::ReportParams {
+        repository_path: result.analysis.repository_path.clone(),
+        verdict: result.analysis.verdict,
+        exit_code: result.exit_code.as_u8(),
+        packages: result.analysis.detected_packages.clone(),
+        tools,
+        steps,
+        findings: result.analysis.findings.clone(),
+        command_results: result.analysis.command_results.clone(),
+    })
+}
+
+fn report_from_verification(
+    rep: &doctor_core::verification::VerificationReport,
+) -> doctor_core::report::Report {
+    let mut findings = Vec::new();
+    let mut command_results = Vec::new();
+    let mut steps = Vec::new();
+
+    for s in &rep.steps {
+        if let Some(f) = &s.finding {
+            findings.push(f.clone());
+        }
+        if let Some(c) = &s.command {
+            command_results.push(c.clone());
+        }
+        steps.push(doctor_core::report::ReportStep {
+            name: s.name.clone(),
+            status: format!("{:?}", s.status),
+            description: s.reason.clone(),
+            exit_code: s.exit_code,
+            duration_millis: Some(s.duration_millis),
+            command: s.displayed_command.clone(),
+        });
+    }
+
+    let verdict = if rep.exit_code == doctor_core::ExitCode::Completed {
+        doctor_core::Verdict::ChecksCompletedWithWarnings
+    } else {
+        doctor_core::Verdict::NotReady
+    };
+
+    doctor_core::report::Report::new(doctor_core::report::ReportParams {
+        repository_path: rep.repository_path.clone(),
+        verdict,
+        exit_code: rep.exit_code.as_u8(),
+        packages: vec![],
+        tools: vec![],
+        steps,
+        findings,
+        command_results,
+    })
+}
+
+fn write_formatted_report(
+    report: &doctor_core::report::Report,
+    format: doctor_core::report::ReportFormat,
+    output: Option<&std::path::Path>,
+) -> Result<(), CliError> {
+    use doctor_core::report::ReportFormat;
+    use std::io::IsTerminal;
+
+    let use_color = std::io::stdout().is_terminal() && std::env::var_os("NO_COLOR").is_none();
+
+    match output {
+        Some(p) if p != std::path::Path::new("-") => {
+            let file = std::fs::File::create(p).map_err(CliError::Output)?;
+            let mut writer = std::io::BufWriter::new(file);
+            doctor_report::write_report(&mut writer, report, format, false)
                 .map_err(CliError::Output)?;
+            if format == ReportFormat::Html {
+                eprintln!("HTML report written to {}", p.display());
+            }
+        }
+        _ => {
+            if format == ReportFormat::Html && output.is_none() {
+                let default_path = PathBuf::from("report.html");
+                let file = std::fs::File::create(&default_path).map_err(CliError::Output)?;
+                let mut writer = std::io::BufWriter::new(file);
+                doctor_report::write_report(&mut writer, report, format, false)
+                    .map_err(CliError::Output)?;
+                eprintln!("HTML report written to report.html");
+            } else {
+                let mut stdout = std::io::stdout().lock();
+                doctor_report::write_report(&mut stdout, report, format, use_color)
+                    .map_err(CliError::Output)?;
             }
         }
     }
-    for capture in &result.captures {
-        writeln!(
-            stdout,
-            "Command: {} {} ({:?})",
-            capture.record.program,
-            capture.record.args.join(" "),
-            capture.record.status
-        )
-        .map_err(CliError::Output)?;
-        if capture
-            .record
-            .args
-            .first()
-            .is_none_or(|arg| arg != "metadata")
-            || capture.record.status != (CommandStatus::Exited { code: 0 })
-        {
-            stdout
-                .write_all(&capture.stdout_bytes)
-                .map_err(CliError::Output)?;
-        }
-        stderr
-            .write_all(&capture.stderr_bytes)
-            .map_err(CliError::Output)?;
-    }
-    writeln!(
-        stdout,
-        "Verdict: {:?}; exit {}",
-        result.analysis.verdict,
-        result.exit_code.as_u8()
-    )
-    .map_err(CliError::Output)?;
-    writeln!(stdout,"Passing Sortralis is not a security audit and does not prove that an upgrade is safe to deploy.").map_err(CliError::Output)?;
     Ok(())
 }
 

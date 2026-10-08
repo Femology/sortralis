@@ -18,4 +18,5 @@ pub use rule_id::{InvalidRuleId, RuleId};
 pub const REPORT_SCHEMA_VERSION: &str = "1.0";
 
 pub mod interface;
+pub mod report;
 pub mod verification;

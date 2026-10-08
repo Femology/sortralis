@@ -1,6 +1,31 @@
-//! Human-readable storage diff records. Full scan report formats are separate.
+//! Sortralis report rendering in Terminal, JSON, SARIF 2.1.0, and self-contained HTML.
+pub mod html;
+pub mod json;
+pub mod sarif;
+pub mod terminal;
+
+pub use html::{html_escape, write_html_report};
+pub use json::write_json_report;
+pub use sarif::{build_sarif, write_sarif_report, SarifLog};
+pub use terminal::write_terminal_report;
+
+use doctor_core::report::{Report, ReportFormat};
 use doctor_core::storage::StorageDiff;
 use std::io::{self, Write};
+
+pub fn write_report(
+    writer: &mut impl Write,
+    report: &Report,
+    format: ReportFormat,
+    use_color: bool,
+) -> io::Result<()> {
+    match format {
+        ReportFormat::Terminal => write_terminal_report(writer, report, use_color),
+        ReportFormat::Json => write_json_report(writer, report),
+        ReportFormat::Sarif => write_sarif_report(writer, report),
+        ReportFormat::Html => write_html_report(writer, report),
+    }
+}
 
 pub fn write_git_diff(
     writer: &mut impl Write,
