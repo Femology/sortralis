@@ -10,8 +10,8 @@ use std::{error::Error, fmt, path::PathBuf, process::ExitCode, time::Duration};
 #[command(
     name = "sortralis",
     version,
-    about = "Pre-alpha CLI for analyzing Soroban contract upgrades",
-    after_help = "Phase 10: doctor --verify records ordered verification; wasm inspects local artifacts; diff compares committed source snapshots without switching the active worktree. Artifact comparison and full scan report files are not implemented.\nPassing Sortralis is not a security audit and does not prove that an upgrade is safe to deploy."
+    about = "Local-first CLI for analyzing Soroban contract upgrades",
+    after_help = "Sortralis analyzes source migration risks, storage and interface changes, committed Git revisions, local Wasm artifacts, and configured verification evidence.\nPassing Sortralis is not a security audit and does not prove that an upgrade is safe to deploy."
 )]
 struct Cli {
     #[command(subcommand)]
@@ -298,7 +298,7 @@ fn run(cli: Cli) -> Result<ExitCode, CliError> {
         } => {
             let environment =
                 detect_environment(&path, Duration::from_secs(5)).map_err(CliError::Environment)?;
-            println!("Environment detection only; full repository analysis is not implemented.");
+            println!("Environment detection only; repository analysis was not requested.");
             let mut failed = false;
             for tool in &environment.tools {
                 match &tool.state {
@@ -331,7 +331,7 @@ fn run(cli: Cli) -> Result<ExitCode, CliError> {
             environment: false,
         } => {
             let analysis = analyze(&path, Duration::from_secs(30)).map_err(CliError::Cargo)?;
-            println!("Cargo discovery only. Full upgrade analysis is not implemented.");
+            println!("Cargo discovery only; use `check` for upgrade analysis and configured verification.");
             println!("Repository: {}", analysis.repository_path.display());
             println!("Workspace: {}", analysis.workspace_root.display());
             println!("Workspace packages: {}", analysis.packages.len());
