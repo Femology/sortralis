@@ -169,3 +169,106 @@ fn sdk_extern_crate_alias_is_resolved_without_treating_other_crates_as_sdk() {
         .unwrap()
         .is_empty());
 }
+
+
+#[test]
+fn sdk28_deploy_rule_flags_deploy_v2_but_not_supported_deployer_helpers() {
+    let path = Path::new("deploy.rs");
+    let legacy = r#"
+        fn f(env: soroban_sdk::Env, hash: soroban_sdk::BytesN<32>) {
+            env.deployer().with_current_contract([0u8; 32]).deploy_v2(hash, ());
+        }
+    "#;
+    let findings = analyze_text(path, legacy, TargetContext::Sdk28).unwrap();
+    let deploy = findings
+        .iter()
+        .find(|finding| finding.id.as_str() == "P28-DEPLOY-001")
+        .unwrap();
+    assert_eq!(deploy.severity, Severity::Breaking);
+
+    let modern = r#"
+        use soroban_sdk::{ContractExecutable, Env};
+        fn f(env: Env, hash: soroban_sdk::BytesN<32>) {
+            let deployer = env.deployer().with_current_contract([0u8; 32]);
+            let _predicted = deployer.deployed_address();
+            deployer.deploy_contract(ContractExecutable::Wasm(hash), ());
+            let _ = env.deployer().with_address(env.current_contract_address(), [1u8; 32]);
+            let _ = env.deployer().upload_contract_wasm(&[]);
+        }
+    "#;
+    let findings = analyze_text(path, modern, TargetContext::Sdk28).unwrap();
+    assert!(
+        findings
+            .iter()
+            .all(|finding| finding.id.as_str() != "P28-DEPLOY-001"),
+        "{findings:?}"
+    );
+}
+
+#[test]
+fn verified_stellar_macros_auth_attributes_suppress_upgrade_review() {
+    let path = Path::new("upgrade.rs");
+
+    for source in [
+        r#"
+            use stellar_macros::only_role;
+            impl C {
+                #[only_role(operator, "manager")]
+                fn upgrade(e: &soroban_sdk::Env, operator: soroban_sdk::Address) {}
+            }
+        "#,
+        r#"
+            impl C {
+                #[stellar_macros::only_owner]
+                fn upgrade(e: &soroban_sdk::Env) {}
+            }
+        "#,
+        r#"
+            use stellar_macros::{only_admin as admin_guard, only_any_role};
+            impl C {
+                #[admin_guard]
+                fn upgrade(e: &soroban_sdk::Env) {}
+                #[only_any_role(operator, ["manager", "admin"])]
+                fn upgrade_contract(e: &soroban_sdk::Env, operator: soroban_sdk::Address) {}
+            }
+        "#,
+    ] {
+        let findings = analyze_text(path, source, TargetContext::Sdk28).unwrap();
+        assert!(
+            findings
+                .iter()
+                .all(|finding| finding.id.as_str() != "P28-AUTH-001"),
+            "{source}\n{findings:?}"
+        );
+    }
+}
+
+#[test]
+fn lookalike_or_non_authorizing_macros_do_not_suppress_upgrade_review() {
+    let path = Path::new("upgrade.rs");
+
+    for source in [
+        r#"
+            #[only_role(operator, "manager")]
+            fn upgrade(e: &soroban_sdk::Env, operator: soroban_sdk::Address) {}
+        "#,
+        r#"
+            use stellar_macros::has_role;
+            #[has_role(operator, "manager")]
+            fn upgrade(e: &soroban_sdk::Env, operator: soroban_sdk::Address) {}
+        "#,
+        r#"
+            use other::only_owner;
+            #[only_owner]
+            fn upgrade(e: &soroban_sdk::Env) {}
+        "#,
+    ] {
+        let findings = analyze_text(path, source, TargetContext::Sdk28).unwrap();
+        assert!(
+            findings
+                .iter()
+                .any(|finding| finding.id.as_str() == "P28-AUTH-001"),
+            "{source}\n{findings:?}"
+        );
+    }
+}
