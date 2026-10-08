@@ -84,7 +84,7 @@ fn real_cli_dirty_sentinel_git_state_and_deterministic_json_gate() {
     );
     let result: doctor_core::git_diff::GitDiff = serde_json::from_slice(&first.stdout).unwrap();
     assert!(result.dirty_active_worktree);
-    assert_eq!(result.sdk_changes.len(), 1);
+    assert_eq!(result.sdk_changes.len(), 1, "{result:#?}");
     assert_eq!(result.functions.len(), 3);
     assert_eq!(result.events.len(), 1);
     assert!(!result.types.is_empty());
@@ -153,10 +153,14 @@ fn identical_refs_and_reverse_findings_are_conservative() {
     let reverse = diff(dir.path(), "after", "before", true);
     assert!(reverse.status.success(), "{reverse:?}");
     let reverse: doctor_core::git_diff::GitDiff = serde_json::from_slice(&reverse.stdout).unwrap();
-    assert!(reverse
-        .findings
-        .iter()
-        .any(|f| f.after.is_empty() && f.before[0].id.as_str() == "SDK28_REMOVED_EXPORT_ARGUMENT"));
+    assert!(
+        reverse
+            .findings
+            .iter()
+            .any(|f| f.after.is_empty()
+                && f.before[0].id.as_str() == "SDK28_REMOVED_EXPORT_ARGUMENT"),
+        "{reverse:#?}"
+    );
 }
 
 #[test]
