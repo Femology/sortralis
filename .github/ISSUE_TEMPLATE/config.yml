@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Sortralis documentation
+    url: https://oobayemi.gitbook.io/sortralis-docs/
+    about: Read installation, CLI, rule, report, architecture, and contribution documentation.
+  - name: Security policy
+    url: https://github.com/Femology/sortralis/security/policy
+    about: Do not disclose sensitive vulnerability details in a public issue.
