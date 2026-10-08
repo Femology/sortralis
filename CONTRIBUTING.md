@@ -1,62 +1,92 @@
 # Contributing to Sortralis
 
-Thank you for your interest in contributing to Sortralis! 
+Sortralis is a pre-alpha local-first CLI for Soroban upgrade analysis. Keep changes narrowly scoped, preserve working behavior, and verify Stellar/Soroban-specific assumptions before implementing them.
 
-## Local Setup
+## Local setup
 
-1. Ensure you have Rust and Cargo installed (latest stable is recommended).
-2. Clone the repository: `git clone https://github.com/stellar/sortralis.git`
-3. Install dependencies and build the workspace: `cargo build`
+Clone the repository:
 
-## Test Commands
-
-To run tests across all crates:
 ```bash
-cargo test
+git clone https://github.com/Femology/sortralis.git
+cd sortralis
 ```
 
-For formatting and linting:
+Use the repository's verified Rust toolchain and lockfile rather than assuming compatibility with every future stable release.
+
+## Required quality checks
+
+Before opening a pull request, run:
+
 ```bash
 cargo fmt --all -- --check
-cargo clippy --all-targets --all-features -- -D warnings
+cargo clippy --workspace --all-targets --all-features -- -D warnings
+cargo test --workspace --all-features
+cargo run -p doctor-cli -- --help
 ```
+
+If formatting fails, run `cargo fmt --all`, inspect the diff, and rerun the checks.
+
+Do not claim that tests passed unless you actually ran them.
 
 ## Architecture
 
-Sortralis uses a modular crate architecture:
-- `doctor-core`: Foundational structs and reporting types.
-- `doctor-cli`: The CLI interface parsing and command routing.
-- `doctor-source`: Uses `syn` for parsing Rust source code and evaluating AST rules.
-- `doctor-wasm`: Extracts information from compiled Soroban WebAssembly binaries.
-- `doctor-runner`: Spawns sub-commands and discovers Cargo manifests.
+The workspace is split by responsibility:
 
-## How to Add a Rule
+- `doctor-core`: shared domain, policy, interface, verification, and report models;
+- `doctor-cli`: CLI routing/orchestration;
+- `doctor-cargo`: Cargo workspace discovery;
+- `doctor-source`: structured Rust parsing and source rules;
+- `doctor-wasm`: Wasm/spec inspection and interface comparison;
+- `doctor-runner`: safe subprocess execution and Stellar CLI integration;
+- `doctor-git`: safe committed-ref comparison;
+- `doctor-report`: terminal, JSON, SARIF, and HTML rendering.
 
-1. Define a struct implementing the `Rule` trait in `crates/doctor-source/src/rules.rs`.
-2. Provide metadata such as the Rule ID (e.g. `P28-API-002`), title, severity, and remediation.
-3. Implement `fn analyze(...)` utilizing `syn::visit` to scan the AST for violations.
-4. Add the rule to the `registry()` function in `rules.rs` to register it with the engine.
+## Adding or changing a rule
 
-## Mandatory Positive/Negative Fixtures
+Before implementing a Stellar/Soroban-specific rule:
 
-Every new rule **must** include corresponding fixtures in `fixtures/matrix/`:
-- **Positive Fixtures**: Source code that intentionally violates the rule (the tool must catch it).
-- **Negative Fixtures**: Healthy source code that mimics the pattern correctly (the tool must pass cleanly, 0 false positives).
+1. verify the behavior against authoritative Stellar documentation, exact crate source/docs, or the installed verified CLI;
+2. give the rule a stable machine-readable ID;
+3. provide concrete evidence and remediation;
+4. add positive and negative tests/fixtures;
+5. ensure comments and string literals do not create false positives;
+6. use manual-review semantics when the analyzer cannot prove a break.
 
-Test your fixtures explicitly:
-```bash
-cargo run --bin sortralis -- check fixtures/matrix/your-new-fixture
-```
+Do not invent protocol behavior because it “sounds risky.”
 
-## How to Add a Report Field Safely
+## Fixtures
 
-1. Navigate to `crates/doctor-core/src/report.rs`.
-2. Add your field to the corresponding struct (e.g., `ReportParams`, `Report`).
-3. Ensure backwards compatibility: if modifying SARIF or JSON models, make the new field optional (`Option<T>`) to avoid breaking existing integrations.
-4. Update terminal output logic in `crates/doctor-report/src/lib.rs` if the field needs human-readable representation.
+Every detection rule should have meaningful positive and negative coverage.
 
-## Commit and PR Expectations
+The end-to-end matrix lives in `fixtures/matrix/`; expected commands, rule IDs, and exit codes are documented in [docs/testing/fixture-matrix.md](docs/testing/fixture-matrix.md).
 
-- **Commit Messages**: Follow [Conventional Commits](https://www.conventionalcommits.org/). e.g., `feat(rules): add P28-API-002`, `fix(cli): resolve formatting issue`.
-- **Additive History**: Do not rewrite shared history. No force pushes to collaborative branches, and no `git commit --amend` once code is shared. Add new commits instead.
-- **PR Description**: Detail why the change is made. If a rule is added, link to the Soroban SDK migration guide.
+Do not weaken a legitimate failing test simply to make CI green.
+
+## Process and command safety
+
+Production code should:
+
+- use typed errors;
+- avoid `todo!()` and `unimplemented!()` in production paths;
+- avoid shell command construction by string concatenation;
+- pass subprocess arguments separately;
+- preserve raw external failure evidence;
+- avoid destructive Git operations against analyzed repositories.
+
+Tests may use `unwrap()` where the expected success is explicit and local.
+
+## Git discipline
+
+- Stage only files belonging to the current logical change.
+- Do **not** use `git add .`.
+- Use conventional commit messages.
+- Keep shared history additive.
+- Do not amend already-shared commits.
+- Do not force-push collaborative branches.
+- If a pushed change needs a fix, add a new normal commit.
+
+## Documentation and claims
+
+Keep README/help text aligned with implemented behavior.
+
+Never claim that Sortralis proves an upgrade is secure or safe to deploy. Passing Sortralis is not a security audit.
