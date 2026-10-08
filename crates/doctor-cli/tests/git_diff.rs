@@ -13,8 +13,31 @@ fn git(root: &Path, args: &[&str]) -> Vec<u8> {
     assert!(output.status.success(), "{output:?}");
     output.stdout
 }
+fn stage_exact_file(root: &Path, path: &str) {
+    let hash = String::from_utf8(git(root, &["hash-object", "-w", "--", path]))
+        .unwrap()
+        .trim()
+        .to_owned();
+    git(
+        root,
+        &[
+            "update-index",
+            "--add",
+            "--cacheinfo",
+            "100644",
+            &hash,
+            path,
+        ],
+    );
+}
+
 fn commit(root: &Path, message: &str) {
-    git(root, &["add", "Cargo.toml", "src/lib.rs", "build.rs"]);
+    // Stage exact blob contents rather than relying on Git's stat-cache shortcut.
+    // The before/after Cargo.toml fixtures have the same size and can otherwise
+    // appear unchanged on filesystems with coarse/racy timestamp behavior.
+    stage_exact_file(root, "Cargo.toml");
+    stage_exact_file(root, "src/lib.rs");
+    stage_exact_file(root, "build.rs");
     git(
         root,
         &[
