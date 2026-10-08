@@ -256,3 +256,90 @@ pub fn write_verification(
     writeln!(output, "Verification exit: {}", report.exit_code.as_u8())?;
     writeln!(output, "{}", report.scope)
 }
+
+pub fn write_interface_diff(
+    output: &mut impl Write,
+    diff: &doctor_core::interface::InterfaceDiff,
+) -> io::Result<()> {
+    writeln!(
+        output,
+        "Contract interface diff [{}]:",
+        diff.analysis_source
+    )?;
+    if diff.analysis_source == doctor_core::interface::AnalysisSource::SourceApproximation {
+        writeln!(
+            output,
+            "NOTICE: Source-derived approximation: not an exact on-ledger contract specification comparison."
+        )?;
+    }
+    writeln!(output, "{}", diff.scope)?;
+
+    let breaking_count = diff
+        .records
+        .iter()
+        .filter(|r| r.classification == doctor_core::interface::InterfaceClassification::Breaking)
+        .count();
+    let review_count = diff
+        .records
+        .iter()
+        .filter(|r| {
+            r.classification == doctor_core::interface::InterfaceClassification::ReviewRequired
+        })
+        .count();
+    let non_breaking_count = diff
+        .records
+        .iter()
+        .filter(|r| {
+            r.classification == doctor_core::interface::InterfaceClassification::NonBreaking
+        })
+        .count();
+
+    writeln!(
+        output,
+        "Diff summary: {} breaking, {} review required, {} non-breaking changes",
+        breaking_count, review_count, non_breaking_count
+    )?;
+
+    if diff.records.is_empty() {
+        writeln!(
+            output,
+            "Identical contract interface: zero public function, type, error, or event changes detected."
+        )?;
+    } else {
+        for record in &diff.records {
+            writeln!(
+                output,
+                "[{}] {} {}: {}",
+                record.classification, record.id, record.subject, record.summary
+            )?;
+            if let Some(before) = &record.before_evidence {
+                writeln!(output, "  before: {before}")?;
+            }
+            if let Some(after) = &record.after_evidence {
+                writeln!(output, "  after:  {after}")?;
+            }
+        }
+    }
+
+    if diff.has_breaking_changes {
+        writeln!(
+            output,
+            "Verdict: NOT READY (breaking interface changes detected)"
+        )?;
+    } else if review_count > 0 {
+        writeln!(
+            output,
+            "Verdict: READY_FOR_MANUAL_REVIEW (manual review items required)"
+        )?;
+    } else {
+        writeln!(
+            output,
+            "Verdict: CHECKS_COMPLETED (no breaking interface changes)"
+        )?;
+    }
+
+    writeln!(
+        output,
+        "Passing Sortralis is not a security audit and does not prove that an upgrade is safe to deploy."
+    )
+}

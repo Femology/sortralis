@@ -10,9 +10,13 @@ doctor-core = { path = "../doctor-core" }
 doctor-runner = { path = "../doctor-runner" }
 serde.workspace = true
 serde_json.workspace = true
+syn.workspace = true
+quote.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true
+doctor-source = { path = "../doctor-source" }
+doctor-report = { path = "../doctor-report" }
 
 [lints]
 workspace = true

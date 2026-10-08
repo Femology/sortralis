@@ -17,4 +17,5 @@ pub use rule_id::{InvalidRuleId, RuleId};
 /// Version of the serialized report structure, independent of the product version.
 pub const REPORT_SCHEMA_VERSION: &str = "1.0";
 
+pub mod interface;
 pub mod verification;

@@ -36,22 +36,17 @@ fn version_reports_the_package_version() {
 }
 
 #[test]
-fn unfinished_commands_fail_explicitly_without_success_output() {
-    {
-        let command = "compare";
-        let output = Command::new(env!("CARGO_BIN_EXE_sortralis"))
-            .arg(command)
-            .output()
-            .unwrap();
-        assert!(
-            !output.status.success(),
-            "{command} must not report success"
-        );
-        assert!(output.stdout.is_empty());
-        let stderr = String::from_utf8(output.stderr).unwrap();
-        assert!(stderr.contains(command), "{stderr}");
-        assert!(stderr.contains("not implemented yet"), "{stderr}");
-    }
+fn compare_without_required_args_fails_with_usage_error() {
+    let output = Command::new(env!("CARGO_BIN_EXE_sortralis"))
+        .arg("compare")
+        .output()
+        .unwrap();
+    assert!(!output.status.success());
+    let stderr = String::from_utf8(output.stderr).unwrap();
+    assert!(
+        stderr.contains("--before") && stderr.contains("--after"),
+        "{stderr}"
+    );
 }
 
 #[test]

@@ -229,9 +229,13 @@ name = "doctor-wasm"
 version = "0.1.0-alpha.1"
 dependencies = [
  "doctor-core",
+ "doctor-report",
  "doctor-runner",
+ "doctor-source",
+ "quote",
  "serde",
  "serde_json",
+ "syn",
  "tempfile",
 ]
 

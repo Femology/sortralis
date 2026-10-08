@@ -62,13 +62,14 @@ pub enum WasmError {
         source: OutputError,
         command: Box<CommandResult>,
     },
+    InvalidInterface(String),
 }
 impl WasmError {
     pub fn exit_code(&self) -> u8 {
         match self {
             Self::File { .. } | Self::InvalidFile(_) => 2,
             Self::Stellar(_) => 3,
-            Self::Output { .. } => 4,
+            Self::Output { .. } | Self::InvalidInterface(_) => 4,
         }
     }
 }
@@ -79,6 +80,7 @@ impl fmt::Display for WasmError {
             Self::InvalidFile(path) => write!(f, "{} must be a regular local WebAssembly v1 file (full validation is delegated to Stellar CLI)", path.display()),
             Self::Stellar(e) => write!(f, "{e}"),
             Self::Output { operation, source, command } => write!(f, "malformed Stellar {operation} output: {source}; stdout={:?}; stderr={:?}", command.stdout, command.stderr),
+            Self::InvalidInterface(msg) => write!(f, "invalid contract interface: {msg}"),
         }
     }
 }
@@ -277,4 +279,38 @@ pub fn inspect_with<R: CommandRunner>(
         commands,
         scope: WASM_SCOPE.into(),
     })
+}
+
+pub mod interface;
+pub use interface::{
+    diff_interfaces, format_spec_type, interface_from_source, parse_contract_interface,
+};
+
+pub fn inspect_interface(
+    path: &Path,
+    directory: &Path,
+) -> Result<doctor_core::interface::ContractInterface, WasmError> {
+    inspect_interface_with(
+        path,
+        directory,
+        &StellarCli::new(&SystemRunner, Duration::from_secs(30)),
+    )
+}
+
+pub fn inspect_interface_with<R: CommandRunner>(
+    path: &Path,
+    directory: &Path,
+    cli: &StellarCli<'_, R>,
+) -> Result<doctor_core::interface::ContractInterface, WasmError> {
+    let path = validate(path)?;
+    let mut commands = Vec::new();
+    let section_inspection = section(
+        cli,
+        InfoOperation::Interface,
+        "interface",
+        &path,
+        directory,
+        &mut commands,
+    )?;
+    parse_contract_interface(&section_inspection.entries)
 }

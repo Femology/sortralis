@@ -44,8 +44,15 @@ enum DoctorCommand {
         #[arg(long)]
         json: bool,
     },
-    /// Compare contract artifacts (not implemented yet)
-    Compare,
+    /// Compare contract interfaces between two Wasm artifacts or project directories
+    Compare {
+        #[arg(long)]
+        before: PathBuf,
+        #[arg(long)]
+        after: PathBuf,
+        #[arg(long)]
+        json: bool,
+    },
     /// Compare committed Git source snapshots without switching the active worktree
     Diff {
         #[arg(long)]
@@ -82,24 +89,8 @@ enum DoctorCommand {
     Explain { rule_id: String },
 }
 
-impl DoctorCommand {
-    fn name(&self) -> &'static str {
-        match self {
-            Self::Scan { .. } => "scan",
-            Self::Doctor { .. } => "doctor",
-            Self::Compare => "compare",
-            Self::Wasm { .. } => "wasm",
-            Self::Diff { .. } => "diff",
-            Self::CompareSource { .. } => "compare-source",
-            Self::Check { .. } => "check",
-            Self::Explain { .. } => "explain",
-        }
-    }
-}
-
 #[derive(Debug)]
 enum CliError {
-    NotImplemented(DoctorCommand),
     Environment(EnvironmentError),
     Cargo(CargoError),
     EnvironmentDetectionFailed,
@@ -111,6 +102,7 @@ enum CliError {
     Diff(doctor_cli::diff::DiffError),
     Wasm(doctor_wasm::WasmError),
     Verification(doctor_cli::verify::VerificationError),
+    Compare(doctor_cli::compare::CompareError),
 }
 
 impl fmt::Display for CliError {
@@ -123,16 +115,12 @@ impl fmt::Display for CliError {
             Self::Diff(error) => write!(formatter, "{error}"),
             Self::Wasm(error) => write!(formatter, "{error}"),
             Self::Verification(error) => write!(formatter, "{error}"),
+            Self::Compare(error) => write!(formatter, "{error}"),
             Self::Environment(error) => write!(formatter, "{error}"),
             Self::Cargo(error) => write!(formatter, "{error}"),
             Self::UnknownRule(id) => write!(formatter, "unknown rule ID: {id}"),
             Self::EnvironmentDetectionFailed => formatter
                 .write_str("environment detection incomplete; review the diagnostics above"),
-            Self::NotImplemented(command) => write!(
-                formatter,
-                "'{}' is not implemented yet; use --help or --version",
-                command.name()
-            ),
         }
     }
 }
@@ -145,6 +133,9 @@ impl Error for CliError {
             Self::Source(error) => Some(error),
             Self::Json(error) => Some(error),
             Self::Diff(error) => Some(error),
+            Self::Wasm(error) => Some(error),
+            Self::Verification(error) => Some(error),
+            Self::Compare(error) => Some(error),
             Self::Environment(error) => Some(error),
             Self::Cargo(error) => Some(error),
             _ => None,
@@ -217,6 +208,27 @@ fn run(cli: Cli) -> Result<ExitCode, CliError> {
                 doctor_report::write_git_diff(&mut stdout, &diff).map_err(CliError::Output)?;
             }
             Ok(ExitCode::SUCCESS)
+        }
+        DoctorCommand::Compare {
+            before,
+            after,
+            json,
+        } => {
+            let diff = doctor_cli::compare::compare(&before, &after).map_err(CliError::Compare)?;
+            let mut stdout = std::io::stdout().lock();
+            if json {
+                use std::io::Write;
+                serde_json::to_writer_pretty(&mut stdout, &diff).map_err(CliError::Json)?;
+                writeln!(stdout).map_err(CliError::Output)?;
+            } else {
+                doctor_report::write_interface_diff(&mut stdout, &diff)
+                    .map_err(CliError::Output)?;
+            }
+            if diff.has_breaking_changes {
+                Ok(ExitCode::from(1))
+            } else {
+                Ok(ExitCode::SUCCESS)
+            }
         }
         DoctorCommand::CompareSource {
             before,
@@ -344,7 +356,6 @@ fn run(cli: Cli) -> Result<ExitCode, CliError> {
             }
             Ok(ExitCode::SUCCESS)
         }
-        command => Err(CliError::NotImplemented(command)),
     }
 }
 
@@ -450,7 +461,7 @@ fn main() -> ExitCode {
                 CliError::Diff(error) => ExitCode::from(error.exit_code()),
                 CliError::Wasm(error) => ExitCode::from(error.exit_code()),
                 CliError::Verification(error) => ExitCode::from(error.exit_code()),
-                CliError::NotImplemented(_) => ExitCode::FAILURE,
+                CliError::Compare(error) => ExitCode::from(error.exit_code()),
                 CliError::UnknownRule(_) => ExitCode::from(2),
                 CliError::Cargo(CargoError::Path { .. } | CargoError::NoManifest { .. }) => {
                     ExitCode::from(2)
