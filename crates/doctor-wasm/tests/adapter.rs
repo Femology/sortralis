@@ -87,6 +87,7 @@ fn file(dir: &tempfile::TempDir) -> std::path::PathBuf {
 fn injected_inspection_preserves_records_and_single_path_argument_without_network() {
     let dir = tempfile::tempdir().unwrap();
     let p = file(&dir);
+    let canonical_p = fs::canonicalize(&p).unwrap();
     let fake = Fake::new();
     let cli = StellarCli::new(&fake, Duration::from_secs(7));
     let report = inspect_with(&p, dir.path(), &cli).unwrap();
@@ -98,7 +99,7 @@ fn injected_inspection_preserves_records_and_single_path_argument_without_networ
         doctor_wasm::BuildInfoStatus::SkippedNetworkPolicy
     );
     for request in fake.calls.borrow().iter().skip(1) {
-        assert_eq!(request.args[4], p.as_os_str());
+        assert_eq!(request.args[4], canonical_p.as_os_str());
         assert_eq!(request.timeout, Duration::from_secs(7));
         assert!(!request
             .args
