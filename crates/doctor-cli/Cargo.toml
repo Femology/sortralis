@@ -4,7 +4,10 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 publish.workspace = true
-description = "Pre-alpha command-line scaffold for Sortralis"
+description = "Local-first CLI for evidence-based Soroban contract upgrade analysis"
+repository = "https://github.com/Femology/sortralis"
+homepage = "https://oobayemi.gitbook.io/sortralis-docs/"
+readme = "../../README.md"
 default-run = "sortralis"
 
 [[bin]]
