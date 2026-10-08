@@ -28,7 +28,7 @@ For Phase 14, we perform real-world smoke tests on public Soroban contract repos
 ### 1. `soroban-example-dapp`
 - **Source Scan / Check**: Ran `sortralis check` against `abundance` and `crowdfund` contracts (`soroban-sdk ^20.0.0-rc2`).
 - **Wasm Build**: Contract build succeeded and produced valid `.wasm` artifacts (`abundance_token.wasm`, `soroban_crowdfund_contract.wasm`).
-- **Tests**: Recorded test abort (exit 101/SIGABRT) caused by pre-v28 SDK linker/testutils mismatch under current host rustc toolchain (classified as environment/toolchain signal, not a rule false positive).
+- **Tests**: Recorded test abort (Cargo exit 101 / SIGABRT) while running this older pre-v28 project under the current host toolchain. The exact root cause has not been proven yet, so this is classified as an environment/toolchain failure under investigation rather than a Sortralis rule false positive.
 - **Source Rules**: Zero false positives reported.
 
 ### 2. `soroban-examples`
