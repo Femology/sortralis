@@ -1,129 +1,185 @@
-# Soroban Upgrade Doctor (sortralis)
+# Sortralis
 
-Pre-alpha CLI for analyzing Soroban contract upgrades and migrating to Protocol 28.
+Sortralis is a local-first Rust CLI for analyzing Soroban contract upgrades before deployment.
 
-## Problem
+It is designed to help maintainers detect known migration risks, inspect Cargo/Soroban project structure, run configured verification steps, compare storage and contract interfaces, inspect local Wasm artifacts, and emit CI-friendly reports.
 
-Protocol 28 introduces significant architectural changes to Soroban contracts, including updates to deployment APIs, events, authentication, and execution models. These changes make manual upgrades tedious and error-prone. Attempting to deploy legacy code to a Protocol 28 network can result in unexpected failures, security gaps, or broken interfaces. 
+**Status:** pre-alpha. Sortralis is not a security audit and does not prove that an upgrade is safe to deploy.
 
-## What Doctor Checks
+## What Sortralis currently does
 
-Sortralis performs static analysis and checks for:
-- **Legacy API Usage**: Detects deprecated SDK v28 calls like `update_current_contract_wasm`.
-- **Protocol 28 Migration Patterns**: Identifies where `ContractExecutable` mechanisms should be used.
-- **Event Shape Risks**: Checks for structural changes to events that could break indexing.
-- **Authentication Changes**: Inspects explicit and implicit authorization patterns.
-- **Storage Mutations**: Flags unsafe or unintended storage state transitions between snapshots.
-- **Custom Account Executables**: Prompts review for custom account authorization mechanisms.
-- **Removed Export Arguments**: Identifies functions relying on removed Protocol 28 exports.
+Sortralis currently supports:
 
-## Installation
+- Cargo workspace and Soroban contract candidate discovery;
+- Rust/Soroban source analysis with stable rule IDs and source evidence;
+- Protocol 28 migration checks backed by fixtures and documented evidence;
+- environment detection for Rust, Cargo, and Stellar CLI;
+- configured test and Stellar contract build execution;
+- local Wasm inspection through the Stellar CLI adapter;
+- storage/source comparison;
+- contract-interface comparison;
+- safe committed Git-ref comparison without switching the active worktree;
+- terminal, JSON, SARIF 2.1.0, and self-contained HTML reports;
+- deterministic end-to-end fixture testing.
 
-```bash
-cargo install --path .
-# or if published
-# cargo install sortralis
-```
-
-## 60-Second Quick Start
-
-Analyze your Soroban smart contract workspace:
-
-```bash
-sortralis check path/to/your/project
-```
-
-## Example Output
-
-```text
-Workspace: /path/to/project
-Summary: 1 breaking, 0 warning, 0 manual review, 0 info; 2 steps (0 passed, 0 failed, 2 other)
-Packages: my-contract (SDK: =28.0.0)
-Tools: cargo 1.96.0, rustc 1.96.0, stellar 27.0.0
-Tests: disabled by configuration
-Build: disabled by configuration
-
-Findings:
-[BREAKING] P28-API-001: The contract calls update_current_contract_wasm, which is deprecated in SDK v28 in favor of Protocol 28 contract executable migration patterns.
-  Location: /path/to/project/src/lib.rs:11
-  Evidence: Legacy update_current_contract_wasm call detected; upgrade mechanism changed in SDK v28
-  Why it matters: Protocol 28 updates the contract deployment and executable architecture (ContractExecutable). Calling update_current_contract_wasm directly requires migration.
-  Remediation: Migrate contract upgrade logic to the supported Protocol 28 ContractExecutable mechanisms.
-  Reference: https://github.com/stellar/rs-soroban-sdk/blob/v28.0.0/soroban-sdk/src/_migrating.rs
-Command: rustc --version (Exited { code: 0 })
-rustc 1.96.0 (ac68faa20 2026-05-25)
-...
-Verdict: NotReady; exit 1
 Passing Sortralis is not a security audit and does not prove that an upgrade is safe to deploy.
+
+## Build
+
+The repository has been verified with Rust/Cargo 1.96.0, edition 2021, and workspace resolver 2.
+
+From the repository root:
+
+```bash
+cargo build --workspace --locked
+cargo run -p doctor-cli -- --help
+cargo run -p doctor-cli -- --version
+```
+
+The main binary is `sortralis`. A short `sud` binary alias is also available for supported commands.
+
+## Quick start
+
+Analyze a Soroban project:
+
+```bash
+cargo run -p doctor-cli -- check ./path/to/project
+```
+
+Discover Cargo packages and Soroban candidates:
+
+```bash
+cargo run -p doctor-cli -- scan ./path/to/project
+```
+
+Inspect the local tool environment:
+
+```bash
+cargo run -p doctor-cli -- scan ./path/to/project --environment
+```
+
+Generate a SARIF report:
+
+```bash
+cargo run -p doctor-cli -- check ./path/to/project --format sarif --output results.sarif
+```
+
+Generate a self-contained HTML report:
+
+```bash
+cargo run -p doctor-cli -- check ./path/to/project --format html --output report.html
 ```
 
 ## Commands
 
-- `doctor`: Discover source packages, or explicitly execute ordered project verification.
-- `scan`: Discover Cargo packages and Soroban candidates.
-- `wasm`: Inspect a local Wasm through Stellar CLI, with no network artifact lookup.
-- `compare`: Compare contract interfaces between two Wasm artifacts or project directories.
-- `diff`: Compare committed Git source snapshots without switching the active worktree.
-- `compare-source`: Compare storage observations in explicit before/after source snapshots.
-- `check`: Run source checks, configured repository tests, and Stellar contract builds.
-- `explain`: Explain a registered source migration rule.
+- `scan` — discover Cargo packages and Soroban contract candidates; optional environment detection.
+- `check` — run source checks and configured repository verification/build steps.
+- `doctor` — perform project discovery or explicit ordered verification with `--verify`.
+- `wasm` — inspect a local Wasm artifact through the verified Stellar CLI adapter.
+- `compare` — compare normalized contract interfaces from Wasm artifacts or project directories.
+- `compare-source` — compare storage observations from explicit source snapshots.
+- `diff` — compare committed Git refs without switching or modifying the active worktree.
+- `explain` — explain a registered rule ID.
 
-## Exit Codes
+Use `--help` on the CLI or an individual subcommand for the current argument surface.
 
-- `0`: Success / Ready
-- `1`: NotReady (Breaking changes or warnings found)
-- `2`: Path or manifest error (Usage error)
-- `3`: Generic execution error
-- `4`: Serialization or metadata parsing error
+## Reporting
 
-## Supported Versions
+`check` supports a unified report model rendered as:
 
-- **Soroban SDK**: `v28.0.0`
-- **Rust/Cargo**: Compatible with latest stable releases
+- terminal;
+- JSON;
+- SARIF 2.1.0;
+- self-contained offline HTML.
+
+The JSON schema is documented in [docs/report-schema.md](docs/report-schema.md).
+
+## Configuration and policy
+
+The optional configuration file is `upgrade-doctor.toml`.
+
+Default policy:
+
+```toml
+fail_on = ["BREAKING"]
+run_tests = true
+build_contracts = true
+report_dir = "./doctor-reports"
+exclude = ["target", "vendor"]
+```
+
+`fail_on` contains exact severities that block the run; it is not a generic “all warnings fail” threshold.
+
+Core exit codes:
+
+| Code | Meaning |
+| --- | --- |
+| 0 | Completed without configured blocking findings |
+| 1 | Findings failed configured policy |
+| 2 | Invalid arguments or configuration |
+| 3 | Environment or external-tool execution failure |
+| 4 | Internal tool/metadata/reporting failure |
+
+## Protocol 28 rules
+
+The current fixture matrix covers, among other cases:
+
+- legacy contract-Wasm update usage;
+- legacy deploy API usage;
+- sparse-event review;
+- invalid/suspicious contract-trait usage;
+- internal generated spec symbol references;
+- upgrade authorization review;
+- storage migration differences;
+- contract-interface breaking changes.
+
+Rules are intentionally conservative. When Sortralis cannot prove a condition, it should report review-required/uncertain status instead of claiming safety.
+
+See [docs/source-rules.md](docs/source-rules.md) and [docs/testing/fixture-matrix.md](docs/testing/fixture-matrix.md).
+
+## Quality checks
+
+Before contributing:
+
+```bash
+cargo fmt --all -- --check
+cargo clippy --workspace --all-targets --all-features -- -D warnings
+cargo test --workspace --all-features
+cargo run -p doctor-cli -- --help
+```
+
+The GitHub Actions quality workflow runs the corresponding checks on pushes and pull requests.
+
+## Real-world smoke testing
+
+Phase 14 validates Sortralis against public Soroban repositories with different layouts and SDK generations. Results and exact pinned commits are recorded in [docs/testing/real-world-smoke-tests.md](docs/testing/real-world-smoke-tests.md).
+
+Third-party smoke-test clones belong under the ignored `/smoke-tests/` directory and must not be committed into this repository.
+
+## Architecture
+
+| Crate | Responsibility |
+| --- | --- |
+| `doctor-cli` | CLI command routing and orchestration |
+| `doctor-core` | Shared domain, policy, interface, verification, and report models |
+| `doctor-cargo` | Cargo workspace/package discovery |
+| `doctor-source` | Structured Rust source analysis and migration rules |
+| `doctor-wasm` | Wasm/spec inspection and normalized interface comparison |
+| `doctor-runner` | Safe external process execution and Stellar CLI adapter |
+| `doctor-git` | Safe committed Git snapshot/ref comparison |
+| `doctor-report` | Terminal, JSON, SARIF, and HTML rendering |
+
+See [docs/architecture.md](docs/architecture.md) for a shorter architecture overview and the topic-specific files under `docs/` for implementation details.
 
 ## Limitations
 
-- Passing Sortralis is **not a security audit** and does not guarantee that an upgrade is safe to deploy.
-- Sortralis does not perform formal verification or dynamic symbolic execution.
-- Windows environments are not officially tested or supported at this time.
-- Does not automatically migrate or rewrite your source code.
+- Sortralis is pre-alpha.
+- It does not perform a security audit, formal verification, or economic analysis.
+- It does not automatically modify production contracts or deploy upgrades.
+- Source-derived interface analysis is explicitly labeled as an approximation when compiled Wasm specification data is unavailable.
+- External build/test behavior depends on the target repository and local toolchain.
+- Windows support is not claimed unless separately tested.
 
-## CI/SARIF Integration
+Read [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md).
 
-Sortralis supports unified terminal, JSON, HTML, and SARIF output formats for seamless CI/CD integration:
-
-```bash
-sortralis check --format sarif --output results.sarif .
-```
-
-You can then upload `results.sarif` to GitHub Advanced Security or other SARIF-compatible scanning tools.
-
-## Architecture Summary
-
-Sortralis is built with a modular crate architecture:
-- `doctor-core`: Core primitives, data structures, and the reporting schema.
-- `doctor-source`: Source-level Rust parsing (using `syn`) and rule evaluation.
-- `doctor-wasm`: Inspects compiled Wasm artifacts.
-- `doctor-runner`: Executes shell commands and orchestrates tests/builds.
-- `doctor-cli`: Command-line interface and subcommands.
-
-Read more in [Architecture](docs/architecture.md).
-
-## Contributing
-
-We welcome contributions! Please review our [Contributing Guide](CONTRIBUTING.md) to understand how to run tests, add rules, and structure PRs.
-
-## Security
-
-Please read our [Security Policy](SECURITY.md) for details on supported versions and how to report vulnerabilities.
-
-## License
-
-MIT License. See [LICENSE](LICENSE) for more information.
-
-## Roadmap
-
-- [ ] Interactive migration hints (fix suggestions)
-- [ ] Direct IDE integration via LSP
-- [ ] Automated git branch management for test setups
-- [ ] Network-based state comparison for storage rules
+Licensed under the [MIT License](LICENSE).
