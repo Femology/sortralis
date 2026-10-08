@@ -1,7 +1,6 @@
 name: Rule request
 description: Propose a new or changed Stellar/Soroban compatibility rule with evidence.
 title: "[Rule]: "
-labels: ["rule"]
 body:
   - type: markdown
     attributes:
