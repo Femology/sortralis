@@ -1,5 +1,34 @@
 # Changelog
 
+## Phase 15 — documentation and contributor readiness
+
+- Publish the Sortralis GitBook documentation site with getting-started, CLI, upgrade-analysis, Protocol 28, reports/CI, architecture, testing/evidence, contributor, security, and reference sections.
+- Add structured GitHub bug and rule-request issue forms plus a pull request template.
+- Cross-link the public documentation from the repository and align contributor guidance with the evidence-first, additive-history workflow.
+
+## Phase 14 — real-world repository validation
+
+- Add pinned source-only smoke tests for Stellar example repositories and OpenZeppelin Stellar Contracts.
+- Fix a confirmed Protocol 28 deploy false positive by narrowing detection to deprecated `deploy_v2`.
+- Recognize verified OpenZeppelin authorization macros while preserving manual review for unresolved caller/helper authorization.
+- Keep real-world smoke evidence as an automated GitHub Actions regression gate.
+
+## Phase 13 — end-to-end fixture matrix
+
+- Add deterministic healthy/broken project fixtures covering Protocol 28 rules, auth, storage, interface changes, malformed input, comments/string false-positive protection, and multi-contract ordering.
+
+## Phase 12 — unified reporting
+
+- Add one normalized report model rendered to terminal, JSON, SARIF 2.1.0, and self-contained HTML.
+- Add report-schema documentation and HTML escaping regression tests.
+
+## Phase 11 — contract interface comparison
+
+- Add normalized function/type/error/event models and interface diff classification.
+- Prefer compiled Wasm contract specification data, with explicitly labeled source approximation fallback.
+- Add `sortralis compare` with breaking-change exit semantics.
+
+
 ## Phase 10 — explicit verification runner
 
 - Add `sud doctor PATH --verify [--json]` with ordered, structured command steps.
@@ -68,6 +97,3 @@
 - Add help/version output and four command names with explicit Phase 1 errors.
 - Add CLI integration tests and workspace lint configuration.
 - Add a GitHub Actions quality workflow and contributor/security documentation.
-
-Wasm inspection, comparison, expanded source rules, and report generation remain
-unimplemented.
