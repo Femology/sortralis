@@ -151,7 +151,7 @@ checksum = "1d07550c9036bf2ae0c684c4297d503f838287c83c53686d05370d0e139ae570"
 
 [[package]]
 name = "doctor-cargo"
-version = "0.1.0-alpha.1"
+version = "0.1.0"
 dependencies = [
  "cargo_metadata",
  "doctor-core",
@@ -161,7 +161,7 @@ dependencies = [
 
 [[package]]
 name = "doctor-cli"
-version = "0.1.0-alpha.1"
+version = "0.1.0"
 dependencies = [
  "clap",
  "doctor-cargo",
@@ -180,7 +180,7 @@ dependencies = [
 
 [[package]]
 name = "doctor-core"
-version = "0.1.0-alpha.1"
+version = "0.1.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -189,7 +189,7 @@ dependencies = [
 
 [[package]]
 name = "doctor-git"
-version = "0.1.0-alpha.1"
+version = "0.1.0"
 dependencies = [
  "doctor-core",
  "doctor-runner",
@@ -198,7 +198,7 @@ dependencies = [
 
 [[package]]
 name = "doctor-report"
-version = "0.1.0-alpha.1"
+version = "0.1.0"
 dependencies = [
  "doctor-core",
  "doctor-wasm",
@@ -208,7 +208,7 @@ dependencies = [
 
 [[package]]
 name = "doctor-runner"
-version = "0.1.0-alpha.1"
+version = "0.1.0"
 dependencies = [
  "doctor-core",
  "nix",
@@ -217,7 +217,7 @@ dependencies = [
 
 [[package]]
 name = "doctor-source"
-version = "0.1.0-alpha.1"
+version = "0.1.0"
 dependencies = [
  "doctor-core",
  "proc-macro2",
@@ -227,7 +227,7 @@ dependencies = [
 
 [[package]]
 name = "doctor-wasm"
-version = "0.1.0-alpha.1"
+version = "0.1.0"
 dependencies = [
  "doctor-core",
  "doctor-report",

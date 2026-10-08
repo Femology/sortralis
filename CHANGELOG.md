@@ -1,5 +1,22 @@
 # Changelog
 
+## v0.1.0 — 2026-10-08
+
+First public release of Sortralis.
+
+Highlights:
+
+- local-first Soroban upgrade analysis with Cargo/project discovery;
+- Protocol 28 migration rules with stable rule IDs and source evidence;
+- configured verification and build/test execution;
+- storage, Git revision, and contract-interface comparison;
+- local Wasm inspection through the verified Stellar CLI adapter;
+- terminal, JSON, SARIF 2.1.0, and self-contained HTML reports;
+- deterministic fixture matrix and pinned real-world Soroban smoke tests;
+- release-tested binaries for Linux x86_64, macOS arm64, macOS x86_64, and Windows x86_64.
+
+Sortralis is not a security audit and does not prove that an upgrade is safe to deploy.
+
 ## Phase 16 — release hardening and v0.1.0 readiness
 
 - Add cross-platform Release Readiness gates for Linux x86_64, macOS arm64, macOS x86_64, and Windows x86_64.
@@ -15,8 +32,6 @@
   - compare source/Wasm evidence paths canonically on macOS;
   - hash tracked Git files by validated relative path so Git for Windows does not receive unsupported extended absolute path syntax.
 - Final Release Readiness run `37820504361` passed on all four intended release platforms.
-
-No v0.1.0 tag or GitHub Release was created in this phase. The repository remains at the current prerelease version until an intentional release decision.
 
 ## Phase 15 — documentation and contributor readiness
 

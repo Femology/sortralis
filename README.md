@@ -4,7 +4,7 @@ Sortralis is a local-first Rust CLI for analyzing Soroban contract upgrades befo
 
 It is designed to help maintainers detect known migration risks, inspect Cargo/Soroban project structure, run configured verification steps, compare storage and contract interfaces, inspect local Wasm artifacts, and emit CI-friendly reports.
 
-**Status:** pre-alpha. Sortralis is not a security audit and does not prove that an upgrade is safe to deploy.
+**Status:** v0.1.0. Sortralis is release-tested on Linux x86_64, macOS arm64, macOS x86_64, and Windows x86_64. It is not a security audit and does not prove that an upgrade is safe to deploy.
 
 **Documentation:** https://oobayemi.gitbook.io/sortralis-docs/
 
@@ -25,6 +25,10 @@ Sortralis currently supports:
 - deterministic end-to-end fixture testing.
 
 Passing Sortralis is not a security audit and does not prove that an upgrade is safe to deploy.
+
+## Install
+
+Download the archive for your platform from the GitHub Releases page and verify the matching SHA-256 checksum before extracting it. Each release archive contains both `sortralis` and the shorter `sud` alias.
 
 ## Build
 
@@ -175,12 +179,11 @@ See [docs/architecture.md](docs/architecture.md) for a shorter architecture over
 
 ## Limitations
 
-- Sortralis is pre-alpha.
 - It does not perform a security audit, formal verification, or economic analysis.
 - It does not automatically modify production contracts or deploy upgrades.
 - Source-derived interface analysis is explicitly labeled as an approximation when compiled Wasm specification data is unavailable.
 - External build/test behavior depends on the target repository and local toolchain.
-- Windows support is not claimed unless separately tested.
+- Release binaries are continuously smoke-tested on Linux x86_64, macOS arm64, macOS x86_64, and Windows x86_64.
 
 Read [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md).
 
