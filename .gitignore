@@ -1,3 +1,5 @@
 /target/
 /smoke-tests/
-*.json
+/Stellar Maintainer Playbook .pdf
+/soroban-upgrade-doctor-codex-build-plan.md
+/soroban-upgrade-doctor-prd.md
