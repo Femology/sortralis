@@ -62,7 +62,7 @@ fn environment_mode_reports_missing_tools_with_structured_ids() {
     assert_eq!(output.status.code(), Some(3));
     let stdout = String::from_utf8(output.stdout).unwrap();
     let stderr = String::from_utf8(output.stderr).unwrap();
-    assert!(stdout.contains("repository analysis is not implemented"));
+    assert!(stdout.contains("repository analysis was not requested"));
     for program in ["RUSTC", "CARGO", "STELLAR"] {
         assert!(
             stderr.contains(&format!("{program}_NOT_INSTALLED")),
