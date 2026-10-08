@@ -1,5 +1,23 @@
 # Changelog
 
+## Phase 16 — release hardening and v0.1.0 readiness
+
+- Add cross-platform Release Readiness gates for Linux x86_64, macOS arm64, macOS x86_64, and Windows x86_64.
+- Add a tag-gated GitHub Release workflow that validates `v<workspace-version>`, builds both `sortralis` and `sud`, packages platform archives, and emits SHA-256 checksum sidecars.
+- Keep the workspace `publish = false`; v0.1.0 distribution is designed around GitHub Release binaries rather than accidental crates.io publication.
+- Remove stale phase-only and “not implemented” CLI help claims from shipped commands.
+- Add package repository/homepage/readme metadata for the CLI crate.
+- Add maintainer release procedure and a v0.1.0 readiness checklist.
+- Harden cross-platform behavior discovered by the new matrix:
+  - exclude runtime-only `elapsed_millis` from deterministic finding comparisons;
+  - canonicalize Git snapshot roots on macOS;
+  - stage synthetic Git fixture blobs exactly instead of relying on filesystem stat-cache timing;
+  - compare source/Wasm evidence paths canonically on macOS;
+  - hash tracked Git files by validated relative path so Git for Windows does not receive unsupported extended absolute path syntax.
+- Final Release Readiness run `37820504361` passed on all four intended release platforms.
+
+No v0.1.0 tag or GitHub Release was created in this phase. The repository remains at the current prerelease version until an intentional release decision.
+
 ## Phase 15 — documentation and contributor readiness
 
 - Publish the Sortralis GitBook documentation site with getting-started, CLI, upgrade-analysis, Protocol 28, reports/CI, architecture, testing/evidence, contributor, security, and reference sections.
