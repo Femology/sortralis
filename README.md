@@ -6,6 +6,8 @@ It is designed to help maintainers detect known migration risks, inspect Cargo/S
 
 **Status:** pre-alpha. Sortralis is not a security audit and does not prove that an upgrade is safe to deploy.
 
+**Documentation:** https://oobayemi.gitbook.io/sortralis-docs/
+
 ## What Sortralis currently does
 
 Sortralis currently supports:
