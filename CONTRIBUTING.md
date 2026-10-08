@@ -1,13 +1,13 @@
 # Contributing to Sortralis
 
-Sortralis is a pre-alpha local-first CLI for Soroban upgrade analysis. Keep changes narrowly scoped, preserve working behavior, and verify Stellar/Soroban-specific assumptions before implementing them.
+Sortralis is a released local-first CLI for Soroban upgrade analysis. Keep changes narrowly scoped, preserve working behavior, and verify Stellar/Soroban-specific assumptions before implementing them.
 
 ## Local setup
 
 Clone the repository:
 
 ```bash
-git clone https://github.com/Femology/sortralis.git
+git clone https://github.com/Sortralis/sortralis.git
 cd sortralis
 ```
 
@@ -20,7 +20,7 @@ Before opening a pull request, run:
 ```bash
 cargo fmt --all -- --check
 cargo clippy --workspace --all-targets --all-features -- -D warnings
-cargo test --workspace --all-features
+cargo test --workspace --all-features --locked
 cargo run -p doctor-cli -- --help
 ```
 
