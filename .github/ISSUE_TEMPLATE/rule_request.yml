@@ -1,0 +1,57 @@
+name: Rule request
+description: Propose a new or changed Stellar/Soroban compatibility rule with evidence.
+title: "[Rule]: "
+labels: ["rule"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Sortralis rules must be evidence-based. Link authoritative Stellar documentation, exact SDK/CLI source, or reproducible tool output.
+  - type: input
+    id: topic
+    attributes:
+      label: Migration or compatibility topic
+      placeholder: "SDK v28 deploy API change"
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Authoritative evidence
+      description: Provide links/versioned source references or exact verified CLI behavior.
+    validations:
+      required: true
+  - type: textarea
+    id: positive
+    attributes:
+      label: Positive example
+      description: Code that should trigger the rule.
+      render: rust
+    validations:
+      required: true
+  - type: textarea
+    id: negative
+    attributes:
+      label: Negative example
+      description: Similar code that must not trigger the rule.
+      render: rust
+    validations:
+      required: true
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Suggested classification
+      options:
+        - BREAKING
+        - WARNING
+        - MANUAL_REVIEW
+        - INFO
+    validations:
+      required: true
+  - type: textarea
+    id: limitations
+    attributes:
+      label: Known limitations or uncertainty
+      description: Explain cases that require type resolution, macro expansion, runtime state, or manual review.
+    validations:
+      required: true
