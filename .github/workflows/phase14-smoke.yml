@@ -5,6 +5,8 @@ on:
     paths:
       - ".github/workflows/phase14-smoke.yml"
       - "docs/testing/real-world-smoke-tests.md"
+      - "crates/doctor-source/**"
+      - "fixtures/matrix/**"
   workflow_dispatch:
 
 permissions:
