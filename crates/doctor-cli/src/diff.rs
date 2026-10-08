@@ -271,6 +271,11 @@ fn excluded(path: &Path, exclude: &Path) -> bool {
     }
 }
 fn ref_analysis(root: &Path, commit: &str) -> Result<RefAnalysis, DiffError> {
+    // Cargo reports canonical absolute paths. Canonicalize the snapshot boundary
+    // too so platform path aliases (for example macOS /var -> /private/var)
+    // cannot produce a false OutsideSnapshot result.
+    let canonical_root = fs::canonicalize(root).map_err(|e| io_error(root, e))?;
+    let root = canonical_root.as_path();
     validate_manifest_paths(root, root)?;
     let config = Config::load_optional(root.join(CONFIG_FILE_NAME)).map_err(DiffError::Config)?;
     let root_options = SourceOptions {
