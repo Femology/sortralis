@@ -1,0 +1,167 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: validate release tag
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Validate tag matches workspace version
+        id: version
+        shell: bash
+        run: |
+          VERSION="$(python3 - <<'PY'
+          import tomllib
+          with open("Cargo.toml", "rb") as handle:
+              data = tomllib.load(handle)
+          print(data["workspace"]["package"]["version"])
+          PY
+          )"
+          EXPECTED="v$VERSION"
+          if [ "$GITHUB_REF_NAME" != "$EXPECTED" ]; then
+            echo "release tag $GITHUB_REF_NAME does not match workspace version $EXPECTED" >&2
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: ${{ matrix.asset }}
+    needs: validate
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            asset: linux-x86_64
+            archive: tar
+          - os: macos-latest
+            asset: macos-arm64
+            archive: tar
+          - os: macos-15-intel
+            asset: macos-x86_64
+            archive: tar
+          - os: windows-latest
+            asset: windows-x86_64
+            archive: zip
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Install verified Rust toolchain
+        shell: bash
+        run: |
+          rustup toolchain install 1.96.0 --profile minimal
+          rustup default 1.96.0
+
+      - name: Build locked release binaries
+        run: cargo build --release --locked -p doctor-cli --bins
+
+      - name: Smoke-test binaries on Unix
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          ./target/release/sortralis --version
+          ./target/release/sortralis --help
+          ./target/release/sud --version
+          ./target/release/sud --help
+
+      - name: Smoke-test binaries on Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          .\target\release\sortralis.exe --version
+          .\target\release\sortralis.exe --help
+          .\target\release\sud.exe --version
+          .\target\release\sud.exe --help
+
+      - name: Package Unix archive
+        if: matrix.archive == 'tar'
+        shell: bash
+        run: |
+          VERSION="${{ needs.validate.outputs.version }}"
+          NAME="sortralis-v${VERSION}-${{ matrix.asset }}"
+          mkdir -p "dist/$NAME"
+          cp target/release/sortralis target/release/sud LICENSE README.md "dist/$NAME/"
+          tar -C dist -czf "dist/$NAME.tar.gz" "$NAME"
+          rm -rf "dist/$NAME"
+          shasum -a 256 "dist/$NAME.tar.gz" > "dist/$NAME.tar.gz.sha256"
+
+      - name: Package Windows archive
+        if: matrix.archive == 'zip'
+        shell: pwsh
+        run: |
+          $version = "${{ needs.validate.outputs.version }}"
+          $name = "sortralis-v$version-${{ matrix.asset }}"
+          New-Item -ItemType Directory -Force -Path "dist\$name" | Out-Null
+          Copy-Item "target\release\sortralis.exe" "dist\$name\"
+          Copy-Item "target\release\sud.exe" "dist\$name\"
+          Copy-Item "LICENSE" "dist\$name\"
+          Copy-Item "README.md" "dist\$name\"
+          $archive = "dist\$name.zip"
+          Compress-Archive -Path "dist\$name\*" -DestinationPath $archive
+          Remove-Item -Recurse -Force "dist\$name"
+          $hash = (Get-FileHash $archive -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  $name.zip" | Set-Content "$archive.sha256"
+
+      - name: Upload packaged release asset
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ matrix.asset }}
+          path: |
+            dist/*.tar.gz
+            dist/*.tar.gz.sha256
+            dist/*.zip
+            dist/*.zip.sha256
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    name: publish GitHub release
+    needs: [validate, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download release assets
+        uses: actions/download-artifact@v4
+        with:
+          pattern: release-*
+          path: dist
+          merge-multiple: true
+
+      - name: Verify release assets
+        shell: bash
+        run: |
+          find dist -maxdepth 1 -type f -print | sort
+          test "$(find dist -maxdepth 1 -type f \( -name '*.tar.gz' -o -name '*.zip' \) | wc -l)" -eq 4
+          test "$(find dist -maxdepth 1 -type f -name '*.sha256' | wc -l)" -eq 4
+
+      - name: Publish release from existing tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/* \
+            --verify-tag \
+            --title "Sortralis $GITHUB_REF_NAME" \
+            --generate-notes
