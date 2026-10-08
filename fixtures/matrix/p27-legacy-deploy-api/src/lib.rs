@@ -7,6 +7,8 @@ pub struct LegacyDeployContract;
 #[contractimpl]
 impl LegacyDeployContract {
     pub fn deploy_contract(env: Env, salt: BytesN<32>, wasm_hash: BytesN<32>) {
-        env.deployer().with_current_contract(salt).deploy(wasm_hash);
+        env.deployer()
+            .with_current_contract(salt)
+            .deploy_v2(wasm_hash, ());
     }
 }
