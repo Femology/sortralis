@@ -1,0 +1,60 @@
+name: Bug report
+description: Report incorrect behavior, a crash, false positive, or false negative in Sortralis.
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve Sortralis. Please provide reproducible evidence and remove secrets/private source before submitting.
+  - type: input
+    id: version
+    attributes:
+      label: Sortralis version or commit
+      description: Paste `sortralis --version` or the commit SHA you tested.
+      placeholder: "0.1.0-alpha / abc1234"
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, Rust/Cargo version, and Stellar CLI version if relevant.
+      placeholder: "Ubuntu 24.04; rustc 1.96.0; stellar 27.0.0"
+    validations:
+      required: true
+  - type: textarea
+    id: command
+    attributes:
+      label: Command
+      description: Exact Sortralis command and relevant non-secret configuration.
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: Include exit code, rule IDs, and sanitized diagnostics.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal reproduction
+      description: Prefer a small public fixture or minimal source snippet. Do not include credentials or private contract source.
+    validations:
+      required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Safety check
+      options:
+        - label: I removed secrets/private data and understand that public issues are public.
+          required: true
