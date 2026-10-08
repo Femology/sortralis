@@ -170,7 +170,6 @@ fn sdk_extern_crate_alias_is_resolved_without_treating_other_crates_as_sdk() {
         .is_empty());
 }
 
-
 #[test]
 fn sdk28_deploy_rule_flags_deploy_v2_but_not_supported_deployer_helpers() {
     let path = Path::new("deploy.rs");
