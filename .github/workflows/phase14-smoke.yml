@@ -1,0 +1,172 @@
+name: Phase 14 Real-World Smoke Tests
+
+on:
+  push:
+    paths:
+      - ".github/workflows/phase14-smoke.yml"
+      - "docs/testing/real-world-smoke-tests.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  source-smoke:
+    name: pinned public-repo source smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Check out Sortralis
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Install verified Rust toolchain
+        run: |
+          rustup toolchain install 1.96.0 --profile minimal
+          rustup default 1.96.0
+
+      - name: Build Sortralis
+        run: cargo build --locked -p doctor-cli
+
+      - name: Clone pinned smoke-test repositories
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p smoke-tests smoke-results
+
+          clone_at() {
+            local url="$1"
+            local sha="$2"
+            local dir="$3"
+            git init -q "$dir"
+            git -C "$dir" remote add origin "$url"
+            git -C "$dir" fetch -q --depth 1 origin "$sha"
+            git -C "$dir" checkout -q --detach FETCH_HEAD
+            test "$(git -C "$dir" rev-parse HEAD)" = "$sha"
+          }
+
+          clone_at             https://github.com/stellar/soroban-example-dapp.git             07504b922bc75a48e5220711aea2cb4962f90367             smoke-tests/soroban-example-dapp
+
+          clone_at             https://github.com/stellar/soroban-examples.git             03d42aa6b973dcf3a453a99d0c6a6e8d25a196e2             smoke-tests/soroban-examples
+
+          clone_at             https://github.com/OpenZeppelin/stellar-contracts.git             ce5c5688a514adc28693cbbafddd7eeb6011d2c8             smoke-tests/stellar-contracts
+
+      - name: Run source-only Sortralis checks sequentially
+        shell: bash
+        run: |
+          set -u
+          SORTRALIS="$GITHUB_WORKSPACE/target/debug/sortralis"
+          mkdir -p smoke-results
+
+          write_config() {
+            local root="$1"
+            cat > "$root/upgrade-doctor.toml" <<'EOF'
+          fail_on = ["BREAKING"]
+          run_tests = false
+          build_contracts = false
+          report_dir = "./doctor-reports"
+          exclude = ["target", "vendor"]
+          EOF
+          }
+
+          run_one() {
+            local label="$1"
+            local root="$2"
+
+            write_config "$root"
+
+            set +e
+            "$SORTRALIS" check "$root" --format json               > "smoke-results/$label.json"               2> "smoke-results/$label.stderr"
+            local code=$?
+            set -e
+
+            printf '%s\n' "$code" > "smoke-results/$label.exit-code"
+          }
+
+          set -e
+          run_one soroban-example-dapp "$GITHUB_WORKSPACE/smoke-tests/soroban-example-dapp"
+          run_one soroban-examples "$GITHUB_WORKSPACE/smoke-tests/soroban-examples/workspace"
+          run_one stellar-contracts "$GITHUB_WORKSPACE/smoke-tests/stellar-contracts"
+
+      - name: Summarize smoke-test evidence
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          root = Path("smoke-results")
+          labels = [
+              "soroban-example-dapp",
+              "soroban-examples",
+              "stellar-contracts",
+          ]
+
+          lines = [
+              "# Phase 14 source-only smoke summary",
+              "",
+              "Pinned public repositories; target-repository tests and builds disabled.",
+              "",
+              "| Repository | Exit | Verdict | Findings | Breaking | Warning | Manual review | Info |",
+              "| --- | ---: | --- | ---: | ---: | ---: | ---: | ---: |",
+          ]
+
+          infrastructure_failure = False
+
+          for label in labels:
+              exit_code = int((root / f"{label}.exit-code").read_text().strip())
+              report_path = root / f"{label}.json"
+
+              try:
+                  report = json.loads(report_path.read_text())
+              except Exception as exc:
+                  lines.append(f"| {label} | {exit_code} | INVALID_JSON | - | - | - | - | - |")
+                  (root / f"{label}.parse-error").write_text(str(exc))
+                  infrastructure_failure = True
+                  continue
+
+              summary = report.get("summary", {})
+              findings = report.get("findings", [])
+              ids = [finding.get("id", "<missing-id>") for finding in findings]
+
+              lines.append(
+                  "| {} | {} | {} | {} | {} | {} | {} | {} |".format(
+                      label,
+                      exit_code,
+                      report.get("verdict", "<missing>"),
+                      summary.get("total_findings", len(findings)),
+                      summary.get("breaking_count", 0),
+                      summary.get("warning_count", 0),
+                      summary.get("manual_review_count", 0),
+                      summary.get("info_count", 0),
+                  )
+              )
+
+              (root / f"{label}.rule-ids").write_text(
+                  "\n".join(ids) + ("\n" if ids else "")
+              )
+
+              # 0 = completed/no configured blocker, 1 = findings failed policy.
+              # Higher codes indicate input/environment/internal failures that need review.
+              if exit_code not in (0, 1):
+                  infrastructure_failure = True
+
+          (root / "summary.md").write_text("\n".join(lines) + "\n")
+          print((root / "summary.md").read_text())
+
+          if infrastructure_failure:
+              raise SystemExit(
+                  "one or more smoke tests returned invalid JSON or exit code >= 2"
+              )
+          PY
+
+      - name: Upload Phase 14 smoke evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase14-source-smoke
+          path: smoke-results/
+          if-no-files-found: error
+          retention-days: 14
