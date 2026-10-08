@@ -40,6 +40,22 @@ fn contract_findings(json: &Value) -> Vec<&Value> {
         .collect()
 }
 
+fn stable_value(value: &Value) -> Value {
+    match value {
+        Value::Array(items) => Value::Array(items.iter().map(stable_value).collect()),
+        Value::Object(map) => {
+            let mut stable = serde_json::Map::new();
+            for (key, child) in map {
+                if key != "elapsed_millis" {
+                    stable.insert(key.clone(), stable_value(child));
+                }
+            }
+            Value::Object(stable)
+        }
+        _ => value.clone(),
+    }
+}
+
 // 1. p28-healthy: No P28 error findings; completed with exit code 0
 #[test]
 fn test_fixture_01_p28_healthy() {
@@ -332,7 +348,8 @@ fn test_matrix_determinism_suite() {
             "summary counts must be deterministic for {target}"
         );
         assert_eq!(
-            json1["findings"], json2["findings"],
+            stable_value(&json1["findings"]),
+            stable_value(&json2["findings"]),
             "findings must be deterministic for {target}"
         );
         assert_eq!(
