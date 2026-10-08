@@ -168,7 +168,7 @@ fn test_sarif_validation_and_parsing() {
     assert!(!run.tool.driver.version.is_empty());
     assert_eq!(
         run.tool.driver.information_uri,
-        "https://github.com/Femology/sortralis"
+        "https://github.com/Sortralis/sortralis"
     );
 
     // Validate rules metadata
