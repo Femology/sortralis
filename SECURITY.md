@@ -2,7 +2,7 @@
 
 ## Project status
 
-Sortralis is currently pre-alpha and has not been audited. No stable release is currently declared supported; security fixes target the current development version on `main`.
+Sortralis v0.1.0 is the current public release and has not been audited. Security fixes target the latest supported release and the current development version on `main`.
 
 Passing Sortralis is not a security audit and does not prove that a contract upgrade is safe to deploy.
 
@@ -45,4 +45,4 @@ A useful report should include:
 - impact;
 - a sanitized proof of concept where possible.
 
-There is no guaranteed response-time SLA while the project is pre-alpha.
+There is currently no guaranteed response-time SLA.
