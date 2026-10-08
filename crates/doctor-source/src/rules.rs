@@ -744,10 +744,7 @@ fn is_upgrade_fn(name: &str, block: &syn::Block) -> bool {
     finder.found
 }
 
-fn verified_auth_attribute(
-    attrs: &[syn::Attribute],
-    names: &BTreeMap<String, String>,
-) -> bool {
+fn verified_auth_attribute(attrs: &[syn::Attribute], names: &BTreeMap<String, String>) -> bool {
     const AUTH_MACROS: [&str; 4] = ["only_role", "only_owner", "only_admin", "only_any_role"];
 
     attrs.iter().any(|attr| {
