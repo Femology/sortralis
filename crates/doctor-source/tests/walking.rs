@@ -55,7 +55,10 @@ fn exclusions_defaults_grouping_and_exact_paths_are_respected() {
         .iter()
         .zip(["src/first.rs", "src/nested/second.rs"])
     {
-        assert_eq!(evidence.path.as_ref().unwrap(), &project.0.join(path));
+        assert_eq!(
+            evidence.path.as_ref().unwrap(),
+            &fs::canonicalize(project.0.join(path)).unwrap()
+        );
         assert_eq!(evidence.line.unwrap().get(), 1);
         assert_eq!(fs::read_to_string(project.0.join(path)).unwrap(), EXPORT);
     }
