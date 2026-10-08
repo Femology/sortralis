@@ -1,34 +1,30 @@
-# Security policy
+# Security Policy
 
-## Status and scope
+## Supported Versions
 
-Sortralis is pre-alpha and **has not been audited**.
-No stable release is currently supported. Security fixes will target the current
-development version.
+Currently, Sortralis is in a pre-alpha state. Security updates will only be applied to the latest `main` branch.
 
-Passing Sortralis is not a security audit and does not prove that an upgrade is safe to deploy.
+| Version | Supported          |
+| ------- | ------------------ |
+| v0.1.x  | :white_check_mark: |
+| Pre-release | :white_check_mark: |
 
-The CLI prints help/version and can detect environment tool versions. The core
-provides data models and validated configuration reading. The runner executes
-explicit requests directly with argument arrays, null stdin, and timeout handling.
-Repository analysis, contract build/test execution, and Wasm parsing are not implemented.
-No private keys or funded accounts are needed.
+## Scope
 
-## Responsible disclosure
+The scope of this policy covers vulnerabilities within the Sortralis CLI and its crates (`doctor-*`).
 
-Do not publish exploit details, private source, credentials, or sensitive files in
-a public issue. When private vulnerability reporting is enabled on GitHub, use the
-repository's Security tab and "Report a vulnerability".
+Sortralis is a static analysis tool designed to aid developers in migrating to Protocol 28. Sortralis analyzes *your* source code and *your* Wasm binaries. If the tool fails to detect a migration issue, this is considered a bug or a missing feature, not a vulnerability in Sortralis itself.
 
-Otherwise, arrange a private reporting channel with the repository owner before
-sharing sensitive details. No dedicated security inbox is configured in this
-local scaffold; do not assume one exists.
+## Explicit Unaudited Disclaimer
 
-Include the affected version, reproduction steps, expected and observed behavior,
-and a minimal sanitized example. A maintainer will confirm the report and discuss
-a fix and disclosure timing. There is no promised response deadline yet.
+**Sortralis is NOT a security audit tool and passing its checks does NOT prove that an upgrade is safe to deploy.** 
 
-Only trusted executable paths/PATH should be supplied to the runner. The current
-CLI requests only rustc, cargo, and stellar with --version. Timeout handling is
-not a security sandbox: see [runner limitations](docs/runner.md). Future Cargo
-builds/tests may execute code from target repositories and require trusted inputs.
+The tool performs AST-level source inspection and basic Wasm scanning, which is inherently limited. It does not perform symbolic execution, formal verification, or dynamic runtime testing. It may produce false positives and false negatives. 
+
+Always conduct comprehensive testing, independent security reviews, and manual inspection before deploying upgrades on a Soroban network.
+
+## Reporting a Vulnerability
+
+If you discover a vulnerability in the Sortralis tool itself (e.g., a vulnerability in how the tool handles malicious input files or dependencies), please reach out to the maintainers. 
+
+*Reporting channel: [SECURITY_CONTACT_PLACEHOLDER]*
