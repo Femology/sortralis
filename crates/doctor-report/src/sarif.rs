@@ -8,7 +8,7 @@ use std::io::{self, Write};
 pub const SARIF_SCHEMA_URI: &str =
     "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json";
 pub const SARIF_VERSION: &str = "2.1.0";
-pub const TOOL_INFORMATION_URI: &str = "https://github.com/Femology/sortralis";
+pub const TOOL_INFORMATION_URI: &str = "https://github.com/Sortralis/sortralis";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -125,7 +125,7 @@ pub fn build_sarif(report: &Report) -> SarifLog {
         let rule_id = finding.id.as_str().to_string();
         if !rules_map.contains_key(&rule_id) {
             let help_uri = format!(
-                "https://github.com/Femology/sortralis/blob/main/docs/rules.md#{}",
+                "https://github.com/Sortralis/sortralis/blob/main/docs/rules.md#{}",
                 rule_id
             );
             rules_map.insert(
