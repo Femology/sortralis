@@ -31,7 +31,7 @@ This document defines the deterministic end-to-end fixture matrix for Sortralis,
 ### 1. `p28-healthy`
 - **Purpose**: Verifies that a healthy Soroban contract targeting SDK v28 produces zero findings and passes the check pipeline without false positives.
 - **Command**: `sortralis check fixtures/matrix/p28-healthy`
-- **Expected Rules**: No findings.
+- **Expected Rules**: None (0 contract/P28 findings).
 - **Expected Exit Code**: `0`.
 - **Stellar CLI Required**: No.
 
