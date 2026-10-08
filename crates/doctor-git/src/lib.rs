@@ -250,7 +250,7 @@ impl GitRepository {
                 "hash-object".into(),
                 "--no-filters".into(),
                 "--".into(),
-                path.into_os_string(),
+                relative.as_os_str().to_owned(),
             ])?;
             if std::str::from_utf8(&hash.stdout_bytes)
                 .map_err(|_| GitError::InvalidOutput("raw hash"))?
