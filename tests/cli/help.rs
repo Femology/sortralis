@@ -96,7 +96,7 @@ fn scan_prints_workspace_and_multiple_contract_candidates() {
         assert!(stdout.contains(name));
     }
     assert!(stdout.contains("=28.0.0"));
-    assert!(stdout.contains("Full upgrade analysis is not implemented"));
+    assert!(stdout.contains("Cargo discovery only"));
 }
 #[test]
 fn scan_no_soroban_is_a_completed_discovery() {
