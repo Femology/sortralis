@@ -10,7 +10,7 @@ This document defines the deterministic end-to-end fixture matrix for Sortralis,
 |---|--------------|---------|-------------|----------------|--------------------|----------------------|
 | 1 | `p28-healthy` | Valid, clean SDK v28 contract with safe types and no deprecated APIs | `sortralis check fixtures/matrix/p28-healthy` | None | `0` (Completed) | No |
 | 2 | `p27-legacy-upgrade-api` | Uses legacy `update_current_contract_wasm` API superseded in Protocol 28 | `sortralis check fixtures/matrix/p27-legacy-upgrade-api` | `P28-API-001` | `1` (PolicyFailed) | No |
-| 3 | `p27-legacy-deploy-api` | Calls deprecated Deployer methods (`with_current_contract`, `upload_contract_wasm`, `with_address`) | `sortralis check fixtures/matrix/p27-legacy-deploy-api` | `P28-DEPLOY-001` | `1` (PolicyFailed) | No |
+| 3 | `p27-legacy-deploy-api` | Calls deprecated `DeployerWithAddress::deploy_v2` API | `sortralis check fixtures/matrix/p27-legacy-deploy-api` | `P28-DEPLOY-001` | `1` (PolicyFailed) | No |
 | 4 | `p28-sparse-event-risk` | Contract event containing unit `()` void values subject to v28 sparse map omission | `sortralis check fixtures/matrix/p28-sparse-event-risk` | `P28-EVENT-001` | `0` (Completed / Review) | No |
 | 5 | `p28-contracttrait-invalid` | Invalid `#[contracttrait]` macro application to non-trait item (struct/enum/fn) | `sortralis check fixtures/matrix/p28-contracttrait-invalid` | `P28-MACRO-001` | `1` (PolicyFailed) | No |
 | 6 | `p28-internal-spec-reference` | Direct source reference to internal `__SPEC_XDR_` symbols or `ScSpecEntry` | `sortralis check fixtures/matrix/p28-internal-spec-reference` | `P28-SPEC-001` | `1` (PolicyFailed) | No |
@@ -43,7 +43,7 @@ This document defines the deterministic end-to-end fixture matrix for Sortralis,
 - **Stellar CLI Required**: No.
 
 ### 3. `p27-legacy-deploy-api`
-- **Purpose**: Verifies detection of legacy `Deployer` deployment patterns (`with_current_contract`, `upload_contract_wasm`, `with_address`).
+- **Purpose**: Verifies detection of deprecated `DeployerWithAddress::deploy_v2`, replaced in SDK v28 by `deploy_contract(ContractExecutable, constructor_args)`. Supported helpers such as `with_current_contract`, `with_address`, and `upload_contract_wasm` are intentionally not findings.
 - **Command**: `sortralis check fixtures/matrix/p27-legacy-deploy-api`
 - **Expected Rules**: `P28-DEPLOY-001`.
 - **Expected Exit Code**: `1` (Severity: Breaking).
@@ -78,7 +78,7 @@ This document defines the deterministic end-to-end fixture matrix for Sortralis,
 - **Stellar CLI Required**: No.
 
 ### 8. `upgrade-auth-none`
-- **Purpose**: Flags contract upgrade functions that lack authorization enforcement (`require_auth()`), which constitutes an unauthenticated contract takeover risk.
+- **Purpose**: Flags upgrade functions where syntax analysis cannot see a direct or verified macro-based authorization signal. This is a manual-review signal, not proof that the function is exploitable; authorization may be delegated through a caller, trait, helper, or macro.
 - **Command**: `sortralis check fixtures/matrix/upgrade-auth-none`
 - **Expected Rules**: `P28-AUTH-001`.
 - **Expected Exit Code**: `0` (Severity: ManualReview / REVIEW_REQUIRED).
